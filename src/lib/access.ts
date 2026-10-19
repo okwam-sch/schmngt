@@ -1,0 +1,376 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  UserPlus,
+  CalendarCheck,
+  Receipt,
+  GraduationCap,
+  FileQuestion,
+  CalendarClock,
+  Library,
+  Users,
+  MessagesSquare,
+  ClipboardList,
+  FileText,
+  BookOpenCheck,
+  ClipboardCheck,
+  HeartHandshake,
+  TrendingUp,
+  Wallet,
+  BarChart3,
+  ShieldCheck,
+  UserCog,
+  Archive,
+  Landmark,
+  Settings2,
+} from "lucide-react";
+
+export type Role = "super_admin" | "school_manager" | "staff" | "student" | "parent";
+
+export type AccessLevel = "super_administrator" | "administrator" | "standard" | "basic";
+
+export const ROLES: Role[] = ["super_admin", "school_manager", "staff", "student", "parent"];
+
+export const ACCESS_RANK: Record<AccessLevel, number> = {
+  basic: 1,
+  standard: 2,
+  administrator: 3,
+  super_administrator: 4,
+};
+
+export const ACCESS_LABEL: Record<AccessLevel, string> = {
+  super_administrator: "Super Administrator Access",
+  administrator: "Administrator Access",
+  standard: "Standard Access",
+  basic: "Basic Access",
+};
+
+export interface RoleMeta {
+  id: Role;
+  label: string;
+  tagline: string;
+  accessLevel: AccessLevel;
+  accent: string; // semantic token name suffix
+}
+
+export const ROLE_META: Record<Role, RoleMeta> = {
+  super_admin: {
+    id: "super_admin",
+    label: "Super Admin",
+    tagline: "System-wide control and configuration",
+    accessLevel: "super_administrator",
+    accent: "role-super",
+  },
+  school_manager: {
+    id: "school_manager",
+    label: "School Manager",
+    tagline: "Registrar & Finance operations",
+    accessLevel: "administrator",
+    accent: "role-manager",
+  },
+  staff: {
+    id: "staff",
+    label: "Staff",
+    tagline: "Teaching, Non-Teaching, and General Staff",
+    accessLevel: "standard",
+    accent: "role-staff",
+  },
+  student: {
+    id: "student",
+    label: "Student",
+    tagline: "Access to academics and personal records",
+    accessLevel: "basic",
+    accent: "role-student",
+  },
+  parent: {
+    id: "parent",
+    label: "Parent",
+    tagline: "Monitor child's academic progress",
+    accessLevel: "basic",
+    accent: "role-parent",
+  },
+};
+
+export type ModuleCategory = "Academics" | "Operations" | "People" | "Finance" | "Administration";
+
+export interface ModuleDef {
+  id: string;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  category: ModuleCategory;
+  roles: Role[];
+}
+
+const ALL: Role[] = ["super_admin", "school_manager", "staff", "student", "parent"];
+const ADMINS: Role[] = ["super_admin", "school_manager"];
+const STAFF_UP: Role[] = ["super_admin", "school_manager", "staff"];
+
+export const MODULES: ModuleDef[] = [
+  {
+    id: "dashboard",
+    name: "Dashboard",
+    description: "Overview of activity, alerts and quick actions.",
+    icon: LayoutDashboard,
+    category: "Operations",
+    roles: ALL,
+  },
+  {
+    id: "admissions",
+    name: "Admissions",
+    description: "Applications, enrolment pipeline and placement.",
+    icon: UserPlus,
+    category: "Operations",
+    roles: ADMINS,
+  },
+  {
+    id: "my-children",
+    name: "My Children",
+    description: "Each admitted child's records, fees, attendance and exeat status.",
+    icon: HeartHandshake,
+    category: "People",
+    roles: ["parent"],
+  },
+
+  {
+    id: "attendance",
+    name: "Attendance",
+    description: "Daily registers, absence tracking and reports.",
+    icon: CalendarCheck,
+    category: "Academics",
+    roles: STAFF_UP,
+  },
+  {
+    id: "students",
+    name: "Students",
+    description: "Student records, classes and guardians.",
+    icon: GraduationCap,
+    category: "People",
+    roles: STAFF_UP,
+  },
+  {
+    id: "staff-management",
+    name: "Staff Management",
+    description: "Onboarding, roles and staff records.",
+    icon: Users,
+    category: "People",
+    roles: ADMINS,
+  },
+  {
+    id: "exams-quizzes",
+    name: "Exams & Quizzes",
+    description: "Question banks, scheduling and marking.",
+    icon: FileQuestion,
+    category: "Academics",
+    roles: ["super_admin", "school_manager", "staff", "student"],
+  },
+  {
+    id: "assessment",
+    name: "Assessment",
+    description: "Continuous assessment entry and moderation.",
+    icon: ClipboardCheck,
+    category: "Academics",
+    roles: STAFF_UP,
+  },
+  {
+    id: "results",
+    name: "Results",
+    description: "Grades, broadsheets and result publication.",
+    icon: ClipboardList,
+    category: "Academics",
+    roles: ALL,
+  },
+  {
+    id: "termly-reports",
+    name: "Termly Reports",
+    description: "End-of-term report cards and comments.",
+    icon: BookOpenCheck,
+    category: "Academics",
+    roles: STAFF_UP,
+  },
+  {
+    id: "timetable",
+    name: "Timetable",
+    description: "Class, teacher and exam scheduling.",
+    icon: CalendarClock,
+    category: "Academics",
+    roles: ["super_admin", "school_manager", "staff", "student"],
+  },
+  {
+    id: "library",
+    name: "Library",
+    description: "Catalogue, lending and returns.",
+    icon: Library,
+    category: "Operations",
+    roles: ["super_admin", "school_manager", "staff", "student"],
+  },
+  {
+    id: "messaging",
+    name: "Messaging",
+    description: "Internal announcements and direct messages.",
+    icon: MessagesSquare,
+    category: "Operations",
+    roles: ALL,
+  },
+  {
+    id: "parent-communication",
+    name: "Parent Communication",
+    description: "Circulars, meetings and guardian updates.",
+    icon: HeartHandshake,
+    category: "People",
+    roles: ["super_admin", "school_manager", "staff", "parent"],
+  },
+  {
+    id: "performance-tracker",
+    name: "Performance Tracker",
+    description: "Progress trends across terms and subjects.",
+    icon: TrendingUp,
+    category: "Academics",
+    roles: ALL,
+  },
+  {
+    id: "fees-invoicing",
+    name: "Fees & Invoicing",
+    description: "Fee structures, billing runs and balances.",
+    icon: Receipt,
+    category: "Finance",
+    roles: ADMINS,
+  },
+  {
+    id: "invoices",
+    name: "Invoices",
+    description: "Issued invoices, receipts and payment status.",
+    icon: FileText,
+    category: "Finance",
+    roles: ADMINS,
+  },
+  {
+    id: "financial-management",
+    name: "Financial Management",
+    description: "Budgets, expenses and financial reporting.",
+    icon: Wallet,
+    category: "Finance",
+    roles: ADMINS,
+  },
+  {
+    id: "advanced-reporting",
+    name: "Advanced Reporting",
+    description: "Cross-module analytics and exports.",
+    icon: BarChart3,
+    category: "Administration",
+    roles: ["super_admin"],
+  },
+  {
+    id: "user-management",
+    name: "User Management",
+    description: "Accounts, access levels and password resets.",
+    icon: UserCog,
+    category: "Administration",
+    roles: ["super_admin"],
+  },
+  {
+    id: "archives",
+    name: "Archives",
+    description: "Historical records and retention.",
+    icon: Archive,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "user-verification",
+    name: "User Verification",
+    description:
+      "Check every account for missing details, role mismatches, duplicates and security gaps, then export the results.",
+    icon: ShieldCheck,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "financial-configuration",
+    name: "Financial Configuration",
+    description:
+      "The control plane for money: currency, fees, invoices, payments, payroll, budgets and the rules every financial module follows.",
+    icon: Landmark,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "system-configuration",
+    name: "System & Platform Configuration",
+    description: "Platform-wide policies, tenant settings, master data, security and feature availability.",
+    icon: Settings2,
+    category: "Administration",
+    roles: ["super_admin"],
+  },
+  {
+    id: "academic-configuration",
+    name: "Academic Configuration",
+    description: "Calendars, grading, assessments, examinations, reporting and timetabling rules.",
+    icon: Settings2,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "people-configuration",
+    name: "People Configuration",
+    description: "Student and staff lifecycle, relationships, identity verification and access policies.",
+    icon: Settings2,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "operations-configuration",
+    name: "Operations Configuration",
+    description: "Admissions processes, library policies and messaging channels.",
+    icon: Settings2,
+    category: "Administration",
+    roles: ["super_admin", "school_manager"],
+  },
+  {
+    id: "reporting-configuration",
+    name: "Reporting & Records Configuration",
+    description: "Report definitions, retention policies, archival rules and data access.",
+    icon: Settings2,
+    category: "Administration",
+    roles: ["super_admin"],
+  },
+];
+
+/**
+ * The lowest access level that can reach a module, derived from the default
+ * level of the least-privileged role allowed on it. Keeping it derived means
+ * role lists and level gates can never drift apart.
+ */
+export function moduleMinLevel(mod: ModuleDef): AccessLevel {
+  return mod.roles
+    .map((r) => ROLE_META[r].accessLevel)
+    .reduce((a, b) => (ACCESS_RANK[a] <= ACCESS_RANK[b] ? a : b), "super_administrator");
+}
+
+export function modulesForRole(role: Role): ModuleDef[] {
+  return MODULES.filter((m) => m.roles.includes(role));
+}
+
+/** Modules visible to a user: allowed for the role AND within their access level. */
+export function modulesFor(role: Role, level: AccessLevel): ModuleDef[] {
+  return modulesForRole(role).filter((m) => ACCESS_RANK[level] >= ACCESS_RANK[moduleMinLevel(m)]);
+}
+
+export function getModule(id: string): ModuleDef | undefined {
+  return MODULES.find((m) => m.id === id);
+}
+
+export function canAccess(role: Role, level: AccessLevel, moduleId: string): boolean {
+  const mod = getModule(moduleId);
+  if (!mod || !mod.roles.includes(role)) return false;
+  return ACCESS_RANK[level] >= ACCESS_RANK[moduleMinLevel(mod)];
+}
+
+
+export const MODULE_CATEGORIES: ModuleCategory[] = [
+  "Operations",
+  "Academics",
+  "People",
+  "Finance",
+  "Administration",
+];

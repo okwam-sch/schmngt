@@ -1,0 +1,6 @@
+- Archives derive record state from the academic calendar + retention-policies rules via the ARCHIVE_SOURCES registry in src/lib/archives.ts; records are never copied or auto-deleted — one registry entry per source, no new tables.
+- Archive viewing/export authorization is evaluated only in src/lib/data-access.ts (pure) and enforced server-side in archives.functions.ts; deny by default except Super Admin — one rule engine, UI only mirrors it.
+- The provisioned school is resolved only via resolveProvisionedSchool in src/lib/school.server.ts — modules never pick their own school row.
+- Learner attendance/score summaries are computed only by src/lib/student-summary.ts, grouped by academic-calendar periods; long lists use the shared usePaged/Pager in src/components/portal/Paged.tsx.
+- The password policy lives only in src/lib/password-policy.ts (rules, zod schema, generator) and new-password fields use PasswordInput/PasswordStrength — client and server enforce the same rules.
+- Education-level scoping (class level, subjects per class, which priced finance items apply to a level and their per-level amount in metadata.levels) lives only in src/lib/education-levels.ts; UI filters and server writes both use it — one rule set.

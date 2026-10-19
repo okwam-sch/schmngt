@@ -1,0 +1,2 @@
+CREATE POLICY "staff record attendance" ON public.student_attendance FOR INSERT TO authenticated WITH CHECK (private.has_role(auth.uid(), 'staff'::app_role));
+CREATE POLICY "staff update attendance" ON public.student_attendance FOR UPDATE TO authenticated USING (private.has_role(auth.uid(), 'staff'::app_role)) WITH CHECK (private.has_role(auth.uid(), 'staff'::app_role));

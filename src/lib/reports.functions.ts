@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CALENDAR_FEATURE_KEY, findPeriod, nextPeriod, parseCalendar } from "@/lib/academic-calendar";
 import { isAttended } from "@/lib/student-summary";
 import { buildBill, rankOf } from "@/lib/reports";
+import { assessmentTotals } from "@/lib/assessment";
 import { RULES_FEATURE_KEY, assessmentWeights, categoryOf, flag, gradeFromBands, num, parseRules, percentOf } from "@/lib/academic-rules";
 
 const STAFF_ROLES = ["super_admin", "school_manager", "staff"];
@@ -82,26 +83,7 @@ export const getTermlyReport = createServerFn({ method: "GET" })
     const { classWeight: CLASS_WEIGHT, examWeight: EXAM_WEIGHT } = assessmentWeights(rules);
 
     // Per student, per subject: average % for class work and for exams, scaled to weights.
-    const acc = new Map<string, Map<string, { c: number[]; e: number[] }>>();
-    for (const r of assess.data ?? []) {
-      const pct = percentOf(Number(r.score), Number(r.out_of));
-      const bySub = acc.get(r.admission_id) ?? new Map();
-      const cell = bySub.get(r.subject) ?? { c: [], e: [] };
-      (categoryOf(rules, r.assessment_type) === "exam" ? cell.e : cell.c).push(pct);
-      bySub.set(r.subject, cell);
-      acc.set(r.admission_id, bySub);
-    }
-    const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
-    const totals = new Map<string, Map<string, { cls: number; exam: number; total: number }>>();
-    for (const [id, bySub] of acc) {
-      const m = new Map();
-      for (const [sub, { c, e }] of bySub) {
-        const cls = (avg(c) * CLASS_WEIGHT) / 100;
-        const exam = (avg(e) * EXAM_WEIGHT) / 100;
-        m.set(sub, { cls, exam, total: cls + exam });
-      }
-      totals.set(id, m);
-    }
+    const totals = assessmentTotals((assess.data ?? []).map((r) => ({ admissionId: r.admission_id, subject: r.subject, assessmentType: r.assessment_type, score: Number(r.score), outOf: Number(r.out_of) })), rules);
 
     const mine = totals.get(student.id) ?? new Map();
     const subjects = [...mine.entries()]

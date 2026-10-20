@@ -16,4 +16,17 @@ export const assessmentInputSchema = z.object({
 
 export const assessmentIdSchema = z.object({ id: z.string().uuid() });
 
+/** Every read is explicitly selected and bounded; no school-wide assessment scan. */
+export const assessmentSelectionSchema = z.object({
+  className: z.string().trim().min(1, "Select a class.").max(80),
+  subject: z.string().trim().min(1, "Select a subject.").max(80),
+  term: z.string().trim().min(1, "Select a period.").max(60),
+  admissionId: z.string().uuid().optional(),
+});
+export const assessmentPageSchema = assessmentSelectionSchema.extend({
+  page: z.number().int().min(0).default(0),
+  pageSize: z.number().int().min(1).max(1000).default(100),
+});
+export type AssessmentSelection = z.infer<typeof assessmentSelectionSchema>;
+
 export type AssessmentInput = z.infer<typeof assessmentInputSchema>;

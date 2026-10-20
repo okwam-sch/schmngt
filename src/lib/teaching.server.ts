@@ -14,8 +14,10 @@ export interface TeachingScope {
 }
 
 export async function loadTeachingScope(supabase: any, userId: string): Promise<TeachingScope> {
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  const role: string = profile?.role ?? "";
+  const { data: roles, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (error) throw new Error("Could not verify teaching permissions.");
+  const assigned = (roles ?? []).map((r: { role: string }) => r.role);
+  const role: string = ["super_admin", "school_manager", "staff"].find((r) => assigned.includes(r)) ?? "";
   if (role === "super_admin" || role === "school_manager") {
     return { isAdmin: true, role, pairs: [], classes: [], subjects: [] };
   }

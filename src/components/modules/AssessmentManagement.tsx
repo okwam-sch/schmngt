@@ -1,541 +1,192 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Download, Loader2, Pencil, Printer, Save, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SchoolLogo } from "@/components/branding/SchoolLogo";
 import { useAcademicCalendar } from "@/hooks/useAcademicCalendar";
-import { PeriodSelect } from "@/components/portal/PeriodFields";
 import { useAcademicRules } from "@/hooks/useAcademicRules";
 import { useSchoolClasses } from "@/hooks/useSchoolClasses";
 import { useSubjectOptions } from "@/hooks/useSubjectOptions";
+import { useSchoolName } from "@/hooks/useSchoolName";
+import { PeriodSelect } from "@/components/portal/PeriodFields";
+import { Pager } from "@/components/portal/Paged";
 import { subjectsForClass } from "@/lib/education-levels";
-import { activeAssessmentTypes, categoryOf, CATEGORY_LABEL, num, percentOf } from "@/lib/academic-rules";
+import { activeAssessmentTypes, assessmentWeights, num, percentOf } from "@/lib/academic-rules";
+import { assessmentCsv, assessmentTotals } from "@/lib/assessment";
+import { assessmentSelectionSchema, type AssessmentSelection } from "@/lib/assessment.schemas";
 import { getMyTeachingScope } from "@/lib/teaching.functions";
-import { Pager, usePaged } from "@/components/portal/Paged";
-import {
-  deleteAssessment,
-  getAssessmentStudents,
-  listAssessments,
-  saveAssessment,
-} from "@/lib/assessment.functions";
+import { deleteAssessment, getAssessmentContext, getAssessmentStudents, listAssessments, saveAssessment } from "@/lib/assessment.functions";
 
-interface StudentRow {
-  id: string;
-  admission_number: string | null;
-  student_name: string;
-  class_admitted: string;
-  parent_name: string | null;
-  parent_phone: string | null;
+type Student = Awaited<ReturnType<typeof getAssessmentStudents>>["rows"][number];
+type RecordRow = Awaited<ReturnType<typeof listAssessments>>["rows"][number];
+type Context = Awaited<ReturnType<typeof getAssessmentContext>>;
+type Draft = { score: string; remark: string };
+const PAGE_SIZE = 50;
+
+function download(name: string, rows: unknown[][]) {
+  const url = URL.createObjectURL(new Blob([assessmentCsv(rows)], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
-
-interface AssessmentRow {
-  id: string;
-  admissionId: string;
-  studentName: string;
-  admissionNumber: string | null;
-  className: string;
-  term: string;
-  subject: string;
-  assessmentType: string;
-  score: number;
-  outOf: number;
-  remark: string;
-  createdAt: string;
-}
-
-const emptyForm = {
-  id: "" as string,
-  admissionId: "",
-  className: "",
-  term: "",
-  subject: "",
-  assessmentType: "",
-  score: "",
-  outOf: "",
-  remark: "",
-};
-
-const pct = percentOf;
 
 export function AssessmentManagement() {
-  const loadStudents = useServerFn(getAssessmentStudents);
-  const loadAssessments = useServerFn(listAssessments);
-  const save = useServerFn(saveAssessment);
-  const remove = useServerFn(deleteAssessment);
-
-  const loadScope = useServerFn(getMyTeachingScope);
-  const rules = useAcademicRules();
-  const types = activeAssessmentTypes(rules);
-  const { names: allClasses, classes: classCatalog } = useSchoolClasses();
-  const { subjects: allSubjects, catalog: subjectCatalog } = useSubjectOptions();
+  const rosterFn = useServerFn(getAssessmentStudents), recordsFn = useServerFn(listAssessments), contextFn = useServerFn(getAssessmentContext);
+  const save = useServerFn(saveAssessment), remove = useServerFn(deleteAssessment), scopeFn = useServerFn(getMyTeachingScope);
+  const calendar = useAcademicCalendar(), configuredRules = useAcademicRules(), school = useSchoolName();
+  const { names, classes } = useSchoolClasses(); const { catalog } = useSubjectOptions();
   const [scope, setScope] = useState<Awaited<ReturnType<typeof getMyTeachingScope>> | null>(null);
-  const [students, setStudents] = useState<StudentRow[]>([]);
-  const [rows, setRows] = useState<AssessmentRow[]>([]);
-  const cal = useAcademicCalendar();
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [selection, setSelection] = useState({ className: "", subject: "", term: "" });
+  const [loaded, setLoaded] = useState<AssessmentSelection | null>(null);
+  const [context, setContext] = useState<Context | null>(null);
+  const [students, setStudents] = useState<Student[]>([]), [rows, setRows] = useState<RecordRow[]>([]);
+  const [rosterTotal, setRosterTotal] = useState(0), [recordTotal, setRecordTotal] = useState(0);
+  const [rosterPage, setRosterPage] = useState(0), [recordPage, setRecordPage] = useState(0);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [type, setType] = useState(""), [outOf, setOutOf] = useState("");
+  const [studentFilter, setStudentFilter] = useState("all"), [report, setReport] = useState<RecordRow[] | null>(null);
+  const [editing, setEditing] = useState<RecordRow | null>(null);
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const reportRef = useRef<HTMLElement>(null);
+  const rules = context?.rules ?? configuredRules, types = activeAssessmentTypes(rules);
+  const chosenType = type || types[0] || "", maximum = outOf || String(num(rules, "assessment", "default-out-of") ?? "");
+  const chosen = { ...selection, term: selection.term || calendar.current?.name || "" };
+  const classOptions = scope && !scope.isAdmin ? scope.classes : names;
+  const className = chosen.className || (classOptions.length === 1 ? classOptions[0] ?? "" : "");
+  const subjectOptions = scope && !scope.isAdmin ? [...new Set(scope.pairs.filter((p) => p.class_name === className).map((p) => p.subject))] : subjectsForClass(catalog, classes, className);
+  const subject = chosen.subject || (subjectOptions.length === 1 ? subjectOptions[0] ?? "" : "");
+  const effective = { ...chosen, className, subject };
+  const hasDrafts = Object.keys(drafts).length > 0;
 
-  const [filterStudent, setFilterStudent] = useState("all");
-  const [filterClass, setFilterClass] = useState("");
-  const [filterTerm, setFilterTerm] = useState("");
-  const [filterSubject, setFilterSubject] = useState("");
+  useEffect(() => { let on = true; scopeFn().then((s) => { if (on) setScope(s); }).catch((e: unknown) => { if (on) setError(e instanceof Error ? e.message : "Could not verify permissions."); }); return () => { on = false; }; }, []);
 
-  const refresh = async () => {
-    try {
-      setRows((await loadAssessments()) as AssessmentRow[]);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load assessments.");
-    }
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true); setError("");
+    try { await action(); } catch (e) { const message = e instanceof Error ? e.message : "The request failed."; setError(message); toast.error(message); } finally { setBusy(false); }
   };
-
-  useEffect(() => {
-    void (async () => {
+  const change = (next: typeof selection) => {
+    if (hasDrafts && !window.confirm("Discard unsaved scores?")) return;
+    setSelection(next); setLoaded(null); setContext(null); setStudents([]); setRows([]); setReport(null); setDrafts({}); setEditing(null); setStudentFilter("all");
+  };
+  const fetchRoster = async (s: AssessmentSelection, page = 0) => {
+    const result = await rosterFn({ data: { ...s, page, pageSize: PAGE_SIZE } });
+    setStudents(result.rows); setRosterTotal(result.total); setRosterPage(page);
+  };
+  const fetchRecords = async (s: AssessmentSelection, page = 0) => {
+    const result = await recordsFn({ data: { ...s, page, pageSize: PAGE_SIZE } });
+    setRows(result.rows); setRecordTotal(result.total); setRecordPage(page);
+  };
+  const selected = (): AssessmentSelection => assessmentSelectionSchema.parse(effective);
+  const recordSelection = (): AssessmentSelection => ({ ...selected(), ...(studentFilter !== "all" ? { admissionId: studentFilter } : {}) });
+  const loadRoster = () => run(async () => {
+    if (hasDrafts && !window.confirm("Discard unsaved scores and reload?")) return;
+    const s = selected(); const metadata = await contextFn({ data: s });
+    await fetchRoster(s); setLoaded(s); setContext(metadata); setDrafts({}); setEditing(null); setReport(null);
+  });
+  // Chunked, exact selection; fail explicitly rather than exporting a silently truncated result.
+  const allRecords = async (s: AssessmentSelection) => {
+    const result: RecordRow[] = []; let page = 0;
+    while (true) {
+      const batch = await recordsFn({ data: { ...s, page, pageSize: 1000 } }); result.push(...batch.rows);
+      if (result.length >= batch.total) break;
+      if (!batch.rows.length || page >= 99) throw new Error("Selection is too large or changed during export; select one student and retry.");
+      page++;
+    }
+    return result;
+  };
+  const exportRecords = () => run(async () => {
+    const s = recordSelection(); const records = await allRecords(s);
+    if (!records.length) throw new Error("No assessment records match this selection.");
+    download("assessments.csv", [["Admission number", "Student", "Class", "Period", "Subject", "Type", "Score", "Out of", "Percentage", "Remark"], ...records.map((r) => [r.admissionNumber, r.studentName, r.className, r.term, r.subject, r.assessmentType, r.score, r.outOf, percentOf(r.score, r.outOf), r.remark])]);
+  });
+  const template = () => run(async () => {
+    const s = selected(); const roster: Student[] = []; let page = 0;
+    while (true) {
+      const batch = await rosterFn({ data: { ...s, page, pageSize: 1000 } }); roster.push(...batch.rows);
+      if (roster.length >= batch.total) break;
+      if (!batch.rows.length || page >= 99) throw new Error("Class list is too large or changed; please reload.");
+      page++;
+    }
+    if (!roster.length) throw new Error("No enrolled students in this class.");
+    download("class-list-template.csv", [["Admission number", "Student", "Class", "Subject", "Period", "Assessment type", "Score", "Out of", "Remark"], ...roster.map((s) => [s.admission_number, s.student_name, s.class_admitted, subject, effective.term, chosenType, "", maximum, ""])]);
+  });
+  const saveRoster = () => run(async () => {
+    if (!loaded) return;
+    const entries = Object.entries(drafts).filter(([, d]) => d.score.trim() !== "");
+    if (!entries.length) throw new Error("Enter at least one score.");
+    // Validate all entered scores before the first write; keep only failed/unsaved rows for retry.
+    const max = Number(maximum);
+    if (!Number.isFinite(max) || max <= 0 || !chosenType) throw new Error("Select an active type and a positive maximum score.");
+    if (entries.some(([, d]) => !Number.isFinite(Number(d.score)) || Number(d.score) < 0)) throw new Error("Scores must be non-negative numbers.");
+    let saved = 0;
+    for (const [admissionId, d] of entries) {
       try {
-        setScope(await loadScope());
-        setStudents((await loadStudents()) as StudentRow[]);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not load students.");
-      }
-      await refresh();
-      setLoading(false);
-    })();
-  }, []);
-
-  // Teachers pick only from their assigned classes, and subjects they teach in that class.
-  const classOptions = scope && !scope.isAdmin ? scope.classes : allClasses;
-  const subjectOptions =
-    scope && !scope.isAdmin
-      ? [...new Set(scope.pairs.filter((p) => !form.className || p.class_name === form.className).map((p) => p.subject))]
-      : form.className
-        ? subjectsForClass(subjectCatalog, classCatalog, form.className)
-        : allSubjects;
-  const classStudents = form.className ? students.filter((s) => s.class_admitted === form.className) : students;
-  const defaultOutOf = num(rules, "assessment", "default-out-of");
-
-  const selectedStudent = students.find((s) => s.id === form.admissionId) ?? null;
-
-  const filtered = useMemo(() => {
-    const has = (value: string, needle: string) =>
-      !needle.trim() || value.toLowerCase().includes(needle.trim().toLowerCase());
-    return rows.filter(
-      (r) =>
-        (filterStudent === "all" || r.admissionId === filterStudent) &&
-        has(r.className, filterClass) &&
-        has(r.term, filterTerm) &&
-        has(r.subject, filterSubject),
-    );
-  }, [rows, filterStudent, filterClass, filterTerm, filterSubject]);
-
-  const subjectAverages = useMemo(() => {
-    const map = new Map<string, number[]>();
-    for (const r of filtered) {
-      const list = map.get(r.subject) ?? [];
-      list.push(pct(r.score, r.outOf));
-      map.set(r.subject, list);
+        await save({ data: { ...loaded, admissionId, assessmentType: chosenType, score: Number(d.score), outOf: max, remark: d.remark } });
+        saved++; setDrafts((current) => { const next = { ...current }; delete next[admissionId]; return next; });
+      } catch (e) { setReport(null); throw new Error(`${saved} saved; remaining scores kept. ${e instanceof Error ? e.message : "Save failed."}`); }
     }
-    return [...map.entries()]
-      .map(([subject, values]) => ({
-        subject,
-        average: values.reduce((a, b) => a + b, 0) / values.length,
-        count: values.length,
-      }))
-      .sort((a, b) => b.average - a.average);
-  }, [filtered]);
-
-  const onPickStudent = (id: string) => {
-    const student = students.find((s) => s.id === id);
-    setForm((f) => {
-      const className = student?.class_admitted ?? f.className;
-      return { ...f, admissionId: id, className, subject: className === f.className ? f.subject : "" };
-    });
+    setReport(null); toast.success(`${saved} assessment records saved.`);
+  });
+  const loadReport = () => run(async () => {
+    const s = recordSelection(); const metadata = await contextFn({ data: s }); const records = await allRecords(s);
+    setLoaded(s); setContext(metadata); setReport(records);
+  });
+  const totals = useMemo(() => assessmentTotals(report ?? [], rules), [report, rules]);
+  const reportRows = [...totals.entries()].flatMap(([id, subjects]) => [...subjects.entries()].map(([sub, result]) => ({ id, subject: sub, student: report?.find((r) => r.admissionId === id), ...result })));
+  const weights = assessmentWeights(rules);
+  const print = () => {
+    if (!reportRef.current || !report?.length) return;
+    const frame = document.createElement("iframe"); frame.className = "offer-print-frame"; frame.title = "Assessment report"; document.body.appendChild(frame);
+    const doc = frame.contentDocument; if (!doc) { frame.remove(); return; }
+    frame.onload = () => { void (async () => { await doc.fonts.ready; await Promise.all(Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); }))); frame.contentWindow?.focus(); frame.contentWindow?.print(); window.setTimeout(() => frame.remove(), 60_000); })(); };
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map((el) => el.outerHTML).join("");
+    doc.open(); doc.write(`<!doctype html><html><head><title>Assessment report</title>${styles}</head><body>${reportRef.current.outerHTML}</body></html>`); doc.close();
   };
+  const update = () => run(async () => {
+    if (!editing) return;
+    await save({ data: { id: editing.id, admissionId: editing.admissionId, className: editing.className, subject: editing.subject, term: editing.term, assessmentType: editing.assessmentType, score: editing.score, outOf: editing.outOf, remark: editing.remark } });
+    setEditing(null); setReport(null); await fetchRecords(recordSelection(), recordPage); toast.success("Assessment updated.");
+  });
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.admissionId) {
-      toast.error("Select a student first.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await save({
-        data: {
-          ...(form.id ? { id: form.id } : {}),
-          admissionId: form.admissionId,
-          className: form.className,
-          term: form.term || cal.current?.name || "",
-          subject: form.subject,
-          assessmentType: form.assessmentType || types[0] || "",
-          score: Number(form.score),
-          outOf: Number(form.outOf || defaultOutOf || 0),
-          remark: form.remark,
-        },
-      });
-      toast.success(form.id ? "Assessment updated." : "Assessment recorded.");
-      setForm(emptyForm);
-      await refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save the assessment.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const edit = (row: AssessmentRow) => {
-    setForm({
-      id: row.id,
-      admissionId: row.admissionId,
-      className: row.className,
-      term: row.term,
-      subject: row.subject,
-      assessmentType: row.assessmentType,
-      score: String(row.score),
-      outOf: String(row.outOf),
-      remark: row.remark,
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const destroy = async (row: AssessmentRow) => {
-    if (!window.confirm(`Delete the ${row.subject} record for ${row.studentName}?`)) return;
-    try {
-      await remove({ data: { id: row.id } });
-      toast.success("Assessment deleted.");
-      await refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not delete the assessment.");
-    }
-  };
-
-  const exportCsv = () => {
-    if (filtered.length === 0) {
-      toast.error("There is nothing to export.");
-      return;
-    }
-    const header = "Student,Class,Term,Subject,Type,Score,Out Of,Percentage,Remark\n";
-    const body = filtered
-      .map((r) =>
-        [
-          r.studentName,
-          r.className,
-          r.term,
-          r.subject,
-          r.assessmentType,
-          r.score,
-          r.outOf,
-          `${pct(r.score, r.outOf).toFixed(2)}%`,
-          r.remark,
-        ]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([header + body], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "assessments.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const paged = usePaged(filtered, 25);
-
-  if (scope && !scope.isAdmin && scope.pairs.length === 0 && !loading) {
-    return (
-      <div className="surface p-6 text-sm text-muted-foreground">
-        You have no teaching assignments yet. An administrator assigns the classes and subjects you teach in
-        User Management or Staff Management.
+  return <div className="space-y-5">
+    <fieldset disabled={busy} className="space-y-4 border-b border-border pb-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="Class / Form"><Choice label="Class / Form" value={className} options={classOptions} onChange={(v) => change({ ...selection, className: v, subject: "" })} /></Field>
+        <Field label="Subject"><Choice label="Subject" value={subject} options={subjectOptions} onChange={(v) => change({ ...selection, className, subject: v })} /></Field>
+        <Field label={calendar.labels.singular}><PeriodSelect value={effective.term} onChange={(v) => change({ ...selection, className, subject, term: v })} /></Field>
       </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="surface flex items-center gap-2 p-6 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" aria-hidden /> Loading assessments…
-      </div>
-    );
-  }
-
-  return (
-    <Tabs defaultValue="record" className="space-y-6">
-      <TabsList>
-        <TabsTrigger value="record">Record</TabsTrigger>
-        <TabsTrigger value="records">Records</TabsTrigger>
-        <TabsTrigger value="report">Performance</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="record" className="space-y-6">
-        <form onSubmit={submit} className="surface space-y-4 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">
-              {form.id ? "Update assessment" : "Add assessment"}
-            </h2>
-            {form.id ? (
-              <Button type="button" variant="ghost" onClick={() => setForm(emptyForm)}>
-                <X className="size-4" aria-hidden /> Cancel edit
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label>Student</Label>
-              <Select value={form.admissionId} onValueChange={onPickStudent}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classStudents.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.student_name}
-                      {s.admission_number ? ` (${s.admission_number})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Field label="Class">
-              <Select
-                value={form.className}
-                onValueChange={(v) => setForm({ ...form, className: v, admissionId: "", subject: "" })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                <SelectContent>
-                  {classOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={cal.labels.singular}>
-              <PeriodSelect value={form.term} onChange={(v) => setForm({ ...form, term: v })} />
-            </Field>
-            <Field label="Subject">
-              <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v })}>
-                <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                <SelectContent>
-                  {subjectOptions.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <Select
-                value={form.assessmentType || types[0] || ""}
-                onValueChange={(v) => setForm({ ...form, assessmentType: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[...new Set([...types, ...(form.assessmentType ? [form.assessmentType] : [])])].map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t} · {CATEGORY_LABEL[categoryOf(rules, t)]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Field label="Score">
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.score}
-                onChange={(e) => setForm({ ...form, score: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label="Out of">
-              <Input
-                type="number"
-                min="1"
-                step="0.01"
-                value={form.outOf}
-                placeholder={defaultOutOf !== null ? String(defaultOutOf) : undefined}
-                onChange={(e) => setForm({ ...form, outOf: e.target.value })}
-              />
-            </Field>
-            <Field label="Remark">
-              <Input
-                value={form.remark}
-                onChange={(e) => setForm({ ...form, remark: e.target.value })}
-                placeholder="Optional comment"
-              />
-            </Field>
-          </div>
-
-          {selectedStudent ? (
-            <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:grid-cols-4">
-              <Meta label="Name" value={selectedStudent.student_name} />
-              <Meta label="Class" value={selectedStudent.class_admitted} />
-              <Meta label="Parent" value={selectedStudent.parent_name ?? "—"} />
-              <Meta label="Contact" value={selectedStudent.parent_phone ?? "—"} />
-            </div>
-          ) : null}
-
-          <Button type="submit" disabled={busy}>
-            {busy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Plus className="size-4" aria-hidden />
-            )}
-            {form.id ? "Update assessment" : "Add assessment"}
-          </Button>
-        </form>
+      <div className="grid gap-4 text-sm sm:grid-cols-3"><Meta label="School" value={context?.school ?? school.name} /><Meta label="Session / Year" value={context ? context.academicYear ?? "Not configured" : calendar.calendar.academicYear} /><Meta label="Subject teacher" value={context ? context.teachers.map((t) => t.full_name).join(", ") || "Not assigned" : "—"} /></div>
+    </fieldset>
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    {busy && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Processing…</p>}
+    <Tabs defaultValue="roster" className="space-y-4">
+      <TabsList><TabsTrigger value="roster">Roster entry</TabsTrigger><TabsTrigger value="records">Records</TabsTrigger><TabsTrigger value="report">Report</TabsTrigger></TabsList>
+      <TabsContent value="roster" className="space-y-4">
+        <div className="flex flex-wrap gap-2"><Button onClick={() => void loadRoster()} disabled={busy || !scope}><Search className="size-4" />Load class roster</Button><Button variant="outline" onClick={() => void template()} disabled={busy || !scope}><Download className="size-4" />Class list template</Button></div>
+        {loaded && students.length > 0 ? <>
+          <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-3"><Field label="Assessment type"><Choice label="Assessment type" value={chosenType} options={types} onChange={setType} /></Field><Field label="Out of"><Input aria-label="Out of" type="number" min="0.01" step="0.01" value={maximum} onChange={(e) => setOutOf(e.target.value)} /></Field><div className="flex items-end"><Button onClick={() => void saveRoster()} disabled={busy || !hasDrafts}><Save className="size-4" />Save entered scores</Button></div></fieldset>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left"><th className="p-2">Student</th><th className="p-2">Admission number</th><th className="w-32 p-2">Score</th><th className="p-2">Remark</th></tr></thead><tbody>{students.map((s) => <tr key={s.id} className="border-b border-border"><td className="p-2 font-medium">{s.student_name}</td><td className="p-2 text-muted-foreground">{s.admission_number ?? "—"}</td><td className="p-2"><Input aria-label={`Score for ${s.student_name}`} disabled={busy} type="number" min="0" step="0.01" value={drafts[s.id]?.score ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [s.id]: { score: e.target.value, remark: d[s.id]?.remark ?? "" } }))} /></td><td className="p-2"><Input aria-label={`Remark for ${s.student_name}`} disabled={busy} maxLength={300} value={drafts[s.id]?.remark ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [s.id]: { score: d[s.id]?.score ?? "", remark: e.target.value } }))} /></td></tr>)}</tbody></table></div>
+          <Pager page={rosterPage} pageSize={PAGE_SIZE} total={rosterTotal} pages={Math.max(1, Math.ceil(rosterTotal / PAGE_SIZE))} setPage={(p) => { if (!busy && loaded) void run(() => fetchRoster(loaded, p)); }} />
+        </> : <p className="py-6 text-sm text-muted-foreground">{loaded ? "No enrolled students in this class." : "No class roster loaded."}</p>}
       </TabsContent>
-
-      <TabsContent value="records" className="space-y-6">
-        <section className="surface space-y-4 p-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label>Student</Label>
-              <Select value={filterStudent} onValueChange={setFilterStudent}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All students</SelectItem>
-                  {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.student_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Field label="Class">
-              <Input value={filterClass} onChange={(e) => setFilterClass(e.target.value)} />
-            </Field>
-            <Field label="Term">
-              <Input value={filterTerm} onChange={(e) => setFilterTerm(e.target.value)} />
-            </Field>
-            <Field label="Subject">
-              <Input value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)} />
-            </Field>
-            <div className="flex items-end">
-              <Button type="button" variant="outline" onClick={exportCsv}>
-                <Download className="size-4" aria-hidden /> Export CSV
-              </Button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="p-2">Student</th>
-                  <th className="p-2">Class</th>
-                  <th className="p-2">Term</th>
-                  <th className="p-2">Subject</th>
-                  <th className="p-2">Type</th>
-                  <th className="p-2 text-right">Score</th>
-                  <th className="p-2 text-right">Out of</th>
-                  <th className="p-2 text-right">%</th>
-                  <th className="p-2">Remark</th>
-                  <th className="p-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paged.items.map((r) => (
-                  <tr key={r.id} className="border-b border-border/60">
-                    <td className="p-2 font-medium">{r.studentName}</td>
-                    <td className="p-2">{r.className || "—"}</td>
-                    <td className="p-2">{r.term}</td>
-                    <td className="p-2">{r.subject}</td>
-                    <td className="p-2">{r.assessmentType}</td>
-                    <td className="p-2 text-right">{r.score}</td>
-                    <td className="p-2 text-right">{r.outOf}</td>
-                    <td className="p-2 text-right">{pct(r.score, r.outOf).toFixed(2)}%</td>
-                    <td className="p-2 text-muted-foreground">{r.remark || "—"}</td>
-                    <td className="p-2">
-                      <div className="flex justify-end gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => edit(r)}>
-                          <Pencil className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => void destroy(r)}
-                        >
-                          <Trash2 className="size-4" aria-hidden />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="p-6 text-center text-muted-foreground">
-                      No assessment records match these filters.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-          <Pager {...paged} />
-        </section>
+      <TabsContent value="records" className="space-y-4">
+        <Field label="Student"><Select value={studentFilter} onValueChange={(v) => { setStudentFilter(v); setReport(null); setRows([]); setEditing(null); }} disabled={busy}><SelectTrigger aria-label="Student"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All students in selected class</SelectItem>{students.map((s) => <SelectItem key={s.id} value={s.id}>{s.student_name}</SelectItem>)}</SelectContent></Select></Field>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy || !scope} onClick={() => void run(() => fetchRecords(recordSelection()))}><Search className="size-4" />Fetch records</Button><Button disabled={busy || !scope} variant="outline" onClick={() => void exportRecords()}><Download className="size-4" />Export CSV</Button></div>
+        {editing && <fieldset disabled={busy} className="space-y-3 border-y border-border py-4"><h3 className="font-semibold">{editing.studentName} · {editing.assessmentType}</h3><div className="grid gap-3 sm:grid-cols-3"><Field label="Score"><Input aria-label="Edit score" type="number" min="0" step="0.01" value={editing.score} onChange={(e) => setEditing({ ...editing, score: Number(e.target.value) })} /></Field><Field label="Out of"><Input aria-label="Edit out of" type="number" min="0.01" step="0.01" value={editing.outOf} onChange={(e) => setEditing({ ...editing, outOf: Number(e.target.value) })} /></Field><Field label="Remark"><Input value={editing.remark} maxLength={300} onChange={(e) => setEditing({ ...editing, remark: e.target.value })} /></Field></div><div className="flex gap-2"><Button onClick={() => void update()}><Save className="size-4" />Save changes</Button><Button variant="ghost" onClick={() => setEditing(null)}><X className="size-4" />Cancel</Button></div></fieldset>}
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left">{["Student", "Type", "Score", "Out of", "%", "Remark", "Actions"].map((h) => <th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{rows.map((r) => <tr key={r.id} className="border-b border-border"><td className="p-2 font-medium">{r.studentName}</td><td className="p-2">{r.assessmentType}</td><td className="p-2">{r.score}</td><td className="p-2">{r.outOf}</td><td className="p-2">{percentOf(r.score, r.outOf).toFixed(2)}</td><td className="p-2">{r.remark}</td><td className="p-2"><div className="flex gap-1"><Button disabled={busy} variant="ghost" size="icon" title="Edit assessment" aria-label={`Edit ${r.studentName} assessment`} onClick={() => setEditing(r)}><Pencil className="size-4" /></Button><Button disabled={busy} variant="ghost" size="icon" title="Delete assessment" aria-label={`Delete ${r.studentName} assessment`} onClick={() => { if (window.confirm(`Delete ${r.studentName}'s ${r.assessmentType} assessment?`)) void run(async () => { await remove({ data: { id: r.id } }); setReport(null); await fetchRecords(recordSelection(), recordPage); }); }}><Trash2 className="size-4 text-destructive" /></Button></div></td></tr>)}</tbody></table></div>
+        {!rows.length && <p className="py-4 text-sm text-muted-foreground">No records loaded for this selection.</p>}
+        <Pager page={recordPage} pageSize={PAGE_SIZE} total={recordTotal} pages={Math.max(1, Math.ceil(recordTotal / PAGE_SIZE))} setPage={(p) => { if (!busy) void run(() => fetchRecords(recordSelection(), p)); }} />
       </TabsContent>
-
-      <TabsContent value="report" className="space-y-6">
-        <section className="surface space-y-4 p-6">
-          <h2 className="text-lg font-semibold">Subject performance</h2>
-          <p className="text-sm text-muted-foreground">
-            Averages across the {filtered.length} record(s) matching the current filters.
-          </p>
-          <div className="space-y-3">
-            {subjectAverages.map((s) => (
-              <div key={s.subject} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">{s.subject}</span>
-                  <span className="text-muted-foreground">
-                    {s.average.toFixed(2)}% · {s.count} record(s)
-                  </span>
-                </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(s.average, 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-            {subjectAverages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data to summarise yet.</p>
-            ) : null}
-          </div>
-        </section>
+      <TabsContent value="report" className="space-y-4"><div className="flex flex-wrap gap-2"><Button disabled={busy || !scope} onClick={() => void loadReport()}><Search className="size-4" />Generate report</Button><Button disabled={busy || !report?.length} variant="outline" onClick={print}><Printer className="size-4" />Print / Save PDF</Button></div>
+        {report ? <article ref={reportRef} className="space-y-4 bg-background p-4 text-foreground"><header className="flex items-center gap-4 border-b border-border pb-4"><SchoolLogo size="lg" /><div><h2 className="text-xl font-bold">{context?.school ?? school.name}</h2><p>{loaded?.className} · {loaded?.subject} · {loaded?.term}</p><p className="text-sm">{context?.academicYear ?? "Session not configured"} · {context?.teachers.map((t) => t.full_name).join(", ") || "Teacher not assigned"}</p></div></header><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left"><th className="p-2">Student</th><th className="p-2">Class / {weights.classWeight}</th><th className="p-2">Exam / {weights.examWeight}</th><th className="p-2">Total / 100</th><th className="p-2">Grade</th><th className="p-2">Level</th></tr></thead><tbody>{reportRows.map((r) => <tr key={`${r.id}-${r.subject}`} className="border-b border-border"><td className="p-2">{r.student?.studentName}<div className="text-xs text-muted-foreground">{r.student?.admissionNumber}</div></td><td className="p-2">{r.cls.toFixed(2)}{!r.classTasks ? " (pending)" : ""}</td><td className="p-2">{r.exam.toFixed(2)}{!r.examTasks ? " (pending)" : ""}</td><td className="p-2">{r.total.toFixed(2)}</td><td className="p-2">{r.grade}</td><td className="p-2">{r.level}</td></tr>)}</tbody></table></div>{!reportRows.length && <p>No assessment records for this selection.</p>}</article> : <p className="py-6 text-sm text-muted-foreground">No report generated.</p>}
       </TabsContent>
     </Tabs>
-  );
+  </div>;
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value}</p>
-    </div>
-  );
-}
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>; }
+function Meta({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p><p className="break-words font-medium">{value}</p></div>; }
+function Choice({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) { return <Select value={value} onValueChange={onChange}><SelectTrigger aria-label={label}><SelectValue placeholder={`Select ${label.toLowerCase()}`} /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select>; }

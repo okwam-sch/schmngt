@@ -12,7 +12,7 @@ import { useAcademicCalendar } from "@/hooks/useAcademicCalendar";
 import { exportArchiveRecords, getArchiveRecords, getArchiveSummary } from "@/lib/archives.functions";
 import { toast } from "sonner";
 import { ARCHIVE_STATE_LABEL, getArchiveSource, type ArchiveState } from "@/lib/archives";
-import { downloadCsv } from "@/lib/user-management";
+import { downloadRecordsCsv } from "@/lib/csv";
 
 const ALL = "__all";
 const STATE_VARIANT: Record<ArchiveState, "default" | "secondary" | "destructive"> = {
@@ -98,7 +98,7 @@ export function ArchivesManagement() {
         ...Object.fromEntries(def.columns.map((c) => [c.label, cell(r.cells, c)])),
       }));
       if (out.watermark) body.unshift({ Date: out.watermark } as any);
-      downloadCsv(`archive-${source}${year !== ALL ? `-${year.replace("/", "-")}` : ""}.csv`, body);
+      downloadRecordsCsv(`archive-${source}${year !== ALL ? `-${year.replace("/", "-")}` : ""}.csv`, body);
       if (out.truncated) toast.warning("Export stopped at the scan limit; narrow the filters for older records.");
     } catch (e) {
       toast.error((e as Error).message);

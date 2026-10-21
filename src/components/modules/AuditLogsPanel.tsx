@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { clearAuditLogs, listAuditLogs } from "@/lib/admin.functions";
-import { downloadCsv } from "@/lib/user-management";
+import { downloadRecordsCsv } from "@/lib/csv";
 
 interface AuditRow {
   id: string;
@@ -96,7 +96,7 @@ export function AuditLogsPanel({ canClear }: { canClear: boolean }) {
             variant="outline"
             size="sm"
             onClick={() =>
-              downloadCsv(
+              downloadRecordsCsv(
                 "audit-logs.csv",
                 filtered.map((r) => ({
                   timestamp: r.created_at,

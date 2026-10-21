@@ -23,7 +23,8 @@ import { PeriodSelect } from "@/components/portal/PeriodFields";
 import { Pager } from "@/components/portal/Paged";
 import { subjectsForClass } from "@/lib/education-levels";
 import { activeAssessmentTypes, assessmentWeights, num, percentOf } from "@/lib/academic-rules";
-import { assessmentCsv, assessmentTotals } from "@/lib/assessment";
+import { assessmentTotals } from "@/lib/assessment";
+import { downloadCsv } from "@/lib/csv";
 import { printDocument } from "@/lib/print-document";
 import { assessmentSelectionSchema, type AssessmentSelection } from "@/lib/assessment.schemas";
 import { getMyTeachingScope } from "@/lib/teaching.functions";
@@ -41,18 +42,7 @@ type Context = Awaited<ReturnType<typeof getAssessmentContext>>;
 type Draft = { score: string; remark: string; createId?: string };
 const PAGE_SIZE = 50;
 
-function download(name: string, rows: unknown[][]) {
-  const url = URL.createObjectURL(
-    new Blob([assessmentCsv(rows)], { type: "text/csv;charset=utf-8" }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
+const download = downloadCsv;
 
 export function AssessmentManagement() {
   const rosterFn = useServerFn(getAssessmentStudents),

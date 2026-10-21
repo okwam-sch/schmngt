@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ATTENDANCE_STATUSES, type AttendanceStatus } from "@/lib/attendance.schemas";
+import { downloadCsv } from "@/lib/csv";
 import {
   getAttendanceAccess,
   getAttendanceClasses,
@@ -171,19 +172,17 @@ export function AttendanceManagement() {
   };
 
   const exportCsv = () => {
-    const header = ["Admission No", "Student", "Class", "Date", "Status", "Note"];
-    const lines = students.map((s) =>
-      [s.admission_number ?? "", s.student_name, className, date, s.status, s.note]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(","),
-    );
-    const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${className}-${date}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`attendance-${className}-${date}.csv`, [
+      ["Admission No", "Student", "Class", "Date", "Status", "Note"],
+      ...students.map((s) => [
+        s.admission_number ?? "",
+        s.student_name,
+        className,
+        date,
+        s.status,
+        s.note,
+      ]),
+    ]);
   };
 
   const historyPage = usePaged(history, 25);

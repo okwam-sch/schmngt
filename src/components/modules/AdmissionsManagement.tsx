@@ -26,9 +26,9 @@ import {
   ADMISSION_CLASSES,
   ADMISSION_FIELDS,
   ADMISSION_TABS,
-  downloadCsv,
   toColumn,
 } from "@/lib/admissions";
+import { downloadCsv } from "@/lib/csv";
 import {
   createAdmission,
   deleteAdmission,

@@ -46,7 +46,7 @@ import {
   categoryLabel,
   today,
 } from "@/lib/finance";
-import { downloadCsv } from "@/lib/user-management";
+import { downloadRecordsCsv } from "@/lib/csv";
 import { useFinanceConfig } from "@/hooks/useFinanceConfig";
 
 type Overview = Awaited<ReturnType<typeof getFinancialOverview>>;

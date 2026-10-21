@@ -130,17 +130,3 @@ export function toColumn(name: string) {
   return name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
-export function csvEscape(value: unknown) {
-  const s = value == null ? "" : String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-export function downloadCsv(filename: string, rows: (string | number | null)[][]) {
-  const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}

@@ -48,7 +48,8 @@ import {
 import { ACCESS_LABEL, ROLES, ROLE_META, type Role } from "@/lib/access";
 import { useSession } from "@/hooks/useSession";
 import { passwordError } from "@/lib/password-policy";
-import { downloadCsv, generateSecurePassword, STATUSES } from "@/lib/user-management";
+import { generateSecurePassword, STATUSES } from "@/lib/user-management";
+import { downloadRecordsCsv } from "@/lib/csv";
 import { AuditLogsPanel } from "./AuditLogsPanel";
 import { SecuritySettingsPanel } from "./SecuritySettingsPanel";
 import { UserFormDialog, type AccountRow, type UserFormValues } from "./UserFormDialog";

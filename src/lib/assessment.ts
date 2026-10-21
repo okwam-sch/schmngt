@@ -67,23 +67,6 @@ export function assessmentTotals(rows: ScoreRecord[], rules: AcademicRules) {
   return totals;
 }
 
-/** Quote and neutralize formula-like text before spreadsheet opening. */
-export function assessmentCsv(rows: unknown[][]) {
-  return (
-    "\uFEFF" +
-    rows
-      .map((row) =>
-        row
-          .map((value) => {
-            let text = String(value ?? "");
-            if (typeof value === "string" && /^[\s]*[=+@\-\t\r]/.test(text)) text = "'" + text;
-            return `"${text.replace(/"/g, '""')}"`;
-          })
-          .join(","),
-      )
-      .join("\r\n")
-  );
-}
 
 export function assertStudentClass(actual: string, selected: string) {
   if (actual !== selected) throw new Error("The selected student does not belong to this class.");

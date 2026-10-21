@@ -14,10 +14,14 @@ export interface TeachingScope {
 }
 
 export async function loadTeachingScope(supabase: any, userId: string): Promise<TeachingScope> {
-  const { data: roles, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const { data: roles, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
   if (error) throw new Error("Could not verify teaching permissions.");
   const assigned = (roles ?? []).map((r: { role: string }) => r.role);
-  const role: string = ["super_admin", "school_manager", "staff"].find((r) => assigned.includes(r)) ?? "";
+  const role: string =
+    ["super_admin", "school_manager", "staff"].find((r) => assigned.includes(r)) ?? "";
   if (role === "super_admin" || role === "school_manager") {
     return { isAdmin: true, role, pairs: [], classes: [], subjects: [] };
   }
@@ -40,7 +44,10 @@ export async function loadTeachingScope(supabase: any, userId: string): Promise<
 export function assertTeaches(scope: TeachingScope, className: string, subject: string) {
   if (scope.isAdmin) return;
   const ok = scope.pairs.some(
-    (p) => p.class_name.toLowerCase() === className.trim().toLowerCase() && p.subject.toLowerCase() === subject.trim().toLowerCase(),
+    (p) =>
+      p.class_name.toLowerCase() === className.trim().toLowerCase() &&
+      p.subject.toLowerCase() === subject.trim().toLowerCase(),
   );
-  if (!ok) throw new Error(`You are not assigned to teach ${subject} in ${className || "this class"}.`);
+  if (!ok)
+    throw new Error(`You are not assigned to teach ${subject} in ${className || "this class"}.`);
 }

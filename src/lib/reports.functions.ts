@@ -1,17 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { CALENDAR_FEATURE_KEY, findPeriod, nextPeriod, parseCalendar } from "@/lib/academic-calendar";
+import {
+  CALENDAR_FEATURE_KEY,
+  findPeriod,
+  nextPeriod,
+  parseCalendar,
+} from "@/lib/academic-calendar";
 import { isAttended } from "@/lib/student-summary";
 import { buildBill, rankOf } from "@/lib/reports";
 import { assessmentTotals } from "@/lib/assessment";
-import { RULES_FEATURE_KEY, assessmentWeights, flag, gradeFromBands, num, parseRules } from "@/lib/academic-rules";
+import {
+  RULES_FEATURE_KEY,
+  assessmentWeights,
+  flag,
+  gradeFromBands,
+  num,
+  parseRules,
+} from "@/lib/academic-rules";
 
 const STAFF_ROLES = ["super_admin", "school_manager", "staff"];
 
 async function assertStaff(supabase: any, userId: string) {
   const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  if (error || !data?.some((r: { role: string }) => STAFF_ROLES.includes(r.role))) throw new Error("Forbidden");
+  if (error || !data?.some((r: { role: string }) => STAFF_ROLES.includes(r.role)))
+    throw new Error("Forbidden");
 }
 
 /** Students and the terms that have assessment records. */
@@ -83,13 +96,24 @@ export const getTermlyReport = createServerFn({ method: "GET" })
     const { classWeight: CLASS_WEIGHT, examWeight: EXAM_WEIGHT } = assessmentWeights(rules);
 
     // Per student, per subject: average % for class work and for exams, scaled to weights.
-    const totals = assessmentTotals((assess.data ?? []).map((r) => ({ admissionId: r.admission_id, subject: r.subject, assessmentType: r.assessment_type, score: Number(r.score), outOf: Number(r.out_of) })), rules);
+    const totals = assessmentTotals(
+      (assess.data ?? []).map((r) => ({
+        admissionId: r.admission_id,
+        subject: r.subject,
+        assessmentType: r.assessment_type,
+        score: Number(r.score),
+        outOf: Number(r.out_of),
+      })),
+      rules,
+    );
 
     const mine = totals.get(student.id) ?? new Map();
     const subjects = [...mine.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([subject, s]) => {
-        const peers = [...totals.values()].map((m) => m.get(subject)?.total).filter((x): x is number => x !== undefined);
+        const peers = [...totals.values()]
+          .map((m) => m.get(subject)?.total)
+          .filter((x): x is number => x !== undefined);
         const g = gradeFromBands(rules.gradeBands, s.total);
         return {
           subject,
@@ -102,7 +126,9 @@ export const getTermlyReport = createServerFn({ method: "GET" })
         };
       });
 
-    const overall = [...totals.values()].map((m) => [...m.values()].reduce((s, x) => s + x.total, 0));
+    const overall = [...totals.values()].map((m) =>
+      [...m.values()].reduce((s, x) => s + x.total, 0),
+    );
     const myOverall = subjects.reduce((s, x) => s + x.total, 0);
 
     // Attendance has no term column — derive the term's date range from when
@@ -120,9 +146,7 @@ export const getTermlyReport = createServerFn({ method: "GET" })
     const termEnd = period?.end ?? dates[dates.length - 1]?.slice(0, 10);
     const att = (attendance.data ?? []).filter(
       (a) =>
-        !termStart ||
-        !termEnd ||
-        (a.attendance_date >= termStart && a.attendance_date <= termEnd),
+        !termStart || !termEnd || (a.attendance_date >= termStart && a.attendance_date <= termEnd),
     );
     return {
       student,

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const assessmentInputSchema = z.object({
   id: z.string().uuid().optional(),
+  createId: z.string().uuid().optional(),
   admissionId: z.string().uuid({ message: "Select a student." }),
   className: z.string().trim().min(1, "Select the class.").max(80),
   term: z.string().min(1, "Enter the term.").max(60),

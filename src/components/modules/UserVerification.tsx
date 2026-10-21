@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, CheckCircle2, Download, RefreshCw, Search } from "lucide-react";
 import { getUserVerificationData } from "@/lib/admin.functions";
+import { downloadCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

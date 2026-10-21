@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ATTENDANCE_STATUSES, type AttendanceStatus } from "@/lib/attendance.schemas";
+import { downloadCsv } from "@/lib/csv";
 import {
   getAttendanceAccess,
   getAttendanceClasses,

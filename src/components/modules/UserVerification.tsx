@@ -63,13 +63,7 @@ function checkAccount(a: Account, ctx: { roleRows: Map<string, string[]>; rolesR
 }
 
 function downloadCSV(rows: (string | number | null | undefined)[][], filename: string) {
-  const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(filename, rows);
 }
 
 export function UserVerification() {

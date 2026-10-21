@@ -26,3 +26,5 @@
 - Branding (name, tagline, motto, year, colours, logo) is read only via get_public_branding_full() (src/lib/branding.*, useSchoolName); the logo renders only through SchoolLogo/LogoWatermark/UserAvatar in src/components/branding (generated crest when none uploaded; default avatar) and is stored as a resized data URL because public storage is blocked — one logo path everywhere.
 
 - Subdirectories have their own AGENTS.md (src/lib) — read it before changing files there.
+- Assessment uses selected, paged authenticated reads and existing per-record saves; assessment.ts supplies the same weighted totals to assessment and termly reports, preventing divergent grading.
+- Printable documents use printDocument in an isolated same-origin frame so portal controls never appear on paper.

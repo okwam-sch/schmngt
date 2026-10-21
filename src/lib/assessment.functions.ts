@@ -126,6 +126,7 @@ export const saveAssessment = createServerFn({ method: "POST" })
       score: data.score,
       out_of: data.outOf,
       remark: data.remark,
+      ...(data.createId && !data.id ? { id: data.createId } : {}),
     };
 
     if (data.id) {

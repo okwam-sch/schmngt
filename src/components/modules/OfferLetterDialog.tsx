@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAppointmentLetter } from "@/lib/offer-letter.functions";
 import { acceptanceDeadline, EMPLOYMENT_TYPES, hasContractRenewal, letterDate, NOTICE_MONTHS, ACCEPTANCE_DAYS, offerReference, type EmploymentType } from "@/lib/offer-letter";
 import { useFinanceConfig } from "@/hooks/useFinanceConfig";
+import { printDocument } from "@/lib/print-document";
 
 export type LetterTarget = { id: string; kind: "account" | "offer" };
 type LetterData = Awaited<ReturnType<typeof getAppointmentLetter>>;
@@ -43,25 +44,7 @@ export function OfferLetterDialog({ target, onClose }: { target: LetterTarget | 
 
   const print = () => {
     if (!letterRef.current || !ready) return;
-    const frame = document.createElement("iframe");
-    frame.className = "offer-print-frame";
-    frame.title = "Print appointment letter";
-    document.body.appendChild(frame);
-    const doc = frame.contentDocument;
-    if (!doc) { frame.remove(); return; }
-    const letterHtml = letterRef.current.outerHTML;
-    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map((el) => el.outerHTML).join("");
-    const printWhenReady = async () => {
-      await doc.fonts.ready;
-      await Promise.all(Array.from(doc.images).map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => { image.onload = () => resolve(); image.onerror = () => resolve(); })));
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-      window.setTimeout(() => frame.remove(), 60_000);
-    };
-    frame.onload = () => { void printWhenReady(); };
-    doc.open();
-    doc.write(`<!doctype html><html><head><title>Appointment letter</title>${styles}</head><body>${letterHtml}</body></html>`);
-    doc.close();
+    printDocument(letterRef.current, "Appointment letter");
   };
 
   return <Dialog open={Boolean(target)} onOpenChange={(open) => { if (!open) onClose(); }}>

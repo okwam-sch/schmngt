@@ -5,7 +5,7 @@ import { CALENDAR_FEATURE_KEY, findPeriod, nextPeriod, parseCalendar } from "@/l
 import { isAttended } from "@/lib/student-summary";
 import { buildBill, rankOf } from "@/lib/reports";
 import { assessmentTotals } from "@/lib/assessment";
-import { RULES_FEATURE_KEY, assessmentWeights, categoryOf, flag, gradeFromBands, num, parseRules, percentOf } from "@/lib/academic-rules";
+import { RULES_FEATURE_KEY, assessmentWeights, flag, gradeFromBands, num, parseRules } from "@/lib/academic-rules";
 
 const STAFF_ROLES = ["super_admin", "school_manager", "staff"];
 

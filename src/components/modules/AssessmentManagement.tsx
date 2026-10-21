@@ -18,6 +18,7 @@ import { Pager } from "@/components/portal/Paged";
 import { subjectsForClass } from "@/lib/education-levels";
 import { activeAssessmentTypes, assessmentWeights, num, percentOf } from "@/lib/academic-rules";
 import { assessmentCsv, assessmentTotals } from "@/lib/assessment";
+import { printDocument } from "@/lib/print-document";
 import { assessmentSelectionSchema, type AssessmentSelection } from "@/lib/assessment.schemas";
 import { getMyTeachingScope } from "@/lib/teaching.functions";
 import { deleteAssessment, getAssessmentContext, getAssessmentStudents, listAssessments, saveAssessment } from "@/lib/assessment.functions";
@@ -25,7 +26,7 @@ import { deleteAssessment, getAssessmentContext, getAssessmentStudents, listAsse
 type Student = Awaited<ReturnType<typeof getAssessmentStudents>>["rows"][number];
 type RecordRow = Awaited<ReturnType<typeof listAssessments>>["rows"][number];
 type Context = Awaited<ReturnType<typeof getAssessmentContext>>;
-type Draft = { score: string; remark: string };
+type Draft = { score: string; remark: string; createId?: string };
 const PAGE_SIZE = 50;
 
 function download(name: string, rows: unknown[][]) {
@@ -125,7 +126,9 @@ export function AssessmentManagement() {
     let saved = 0;
     for (const [admissionId, d] of entries) {
       try {
-        await save({ data: { ...loaded, admissionId, assessmentType: chosenType, score: Number(d.score), outOf: max, remark: d.remark } });
+        const createId = d.createId ?? crypto.randomUUID();
+        setDrafts((current) => ({ ...current, [admissionId]: { ...d, createId } }));
+        await save({ data: { ...loaded, admissionId, createId, assessmentType: chosenType, score: Number(d.score), outOf: max, remark: d.remark } });
         saved++; setDrafts((current) => { const next = { ...current }; delete next[admissionId]; return next; });
       } catch (e) { setReport(null); throw new Error(`${saved} saved; remaining scores kept. ${e instanceof Error ? e.message : "Save failed."}`); }
     }
@@ -140,11 +143,7 @@ export function AssessmentManagement() {
   const weights = assessmentWeights(rules);
   const print = () => {
     if (!reportRef.current || !report?.length) return;
-    const frame = document.createElement("iframe"); frame.className = "offer-print-frame"; frame.title = "Assessment report"; document.body.appendChild(frame);
-    const doc = frame.contentDocument; if (!doc) { frame.remove(); return; }
-    frame.onload = () => { void (async () => { await doc.fonts.ready; await Promise.all(Array.from(doc.images).map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); }))); frame.contentWindow?.focus(); frame.contentWindow?.print(); window.setTimeout(() => frame.remove(), 60_000); })(); };
-    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map((el) => el.outerHTML).join("");
-    doc.open(); doc.write(`<!doctype html><html><head><title>Assessment report</title>${styles}</head><body>${reportRef.current.outerHTML}</body></html>`); doc.close();
+    printDocument(reportRef.current, "Assessment report");
   };
   const update = () => run(async () => {
     if (!editing) return;

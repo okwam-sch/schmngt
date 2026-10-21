@@ -403,7 +403,7 @@ export function UserManagement() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  downloadCsv(
+                  downloadRecordsCsv(
                     "users.csv",
                     filtered.map((a) => ({
                       full_name: a.full_name,

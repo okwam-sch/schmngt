@@ -464,20 +464,20 @@ export function FinancialManagement() {
             <div className="flex flex-wrap gap-2">
               <ExportButton
                 label="Income report"
-                onClick={() => downloadCsv("income-report.csv", data.income as never)}
+                onClick={() => downloadRecordsCsv("income-report.csv", data.income as never)}
               />
               <ExportButton
                 label="Expense report"
-                onClick={() => downloadCsv("expense-report.csv", data.expenses as never)}
+                onClick={() => downloadRecordsCsv("expense-report.csv", data.expenses as never)}
               />
               <ExportButton
                 label="Payroll report"
-                onClick={() => downloadCsv("payroll-report.csv", data.payroll as never)}
+                onClick={() => downloadRecordsCsv("payroll-report.csv", data.payroll as never)}
               />
               <ExportButton
                 label="Fee report"
                 onClick={() =>
-                  downloadCsv(
+                  downloadRecordsCsv(
                     "fee-report.csv",
                     data.fees.map((f) => {
                       const s = f.admissions as { student_name?: string; admission_number?: string } | null;

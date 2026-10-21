@@ -96,7 +96,7 @@ export function AuditLogsPanel({ canClear }: { canClear: boolean }) {
             variant="outline"
             size="sm"
             onClick={() =>
-              downloadCsv(
+              downloadRecordsCsv(
                 "audit-logs.csv",
                 filtered.map((r) => ({
                   timestamp: r.created_at,

@@ -98,7 +98,7 @@ export function ArchivesManagement() {
         ...Object.fromEntries(def.columns.map((c) => [c.label, cell(r.cells, c)])),
       }));
       if (out.watermark) body.unshift({ Date: out.watermark } as any);
-      downloadCsv(`archive-${source}${year !== ALL ? `-${year.replace("/", "-")}` : ""}.csv`, body);
+      downloadRecordsCsv(`archive-${source}${year !== ALL ? `-${year.replace("/", "-")}` : ""}.csv`, body);
       if (out.truncated) toast.warning("Export stopped at the scan limit; narrow the filters for older records.");
     } catch (e) {
       toast.error((e as Error).message);

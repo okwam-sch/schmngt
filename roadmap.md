@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Assessment attachment integration
-- [ ] Audit attachment and replace eager assessment scans with selected, on-demand roster reads
-- [ ] Save roster scores through existing authorized assessment functions; share report calculations
-- [ ] Add selected CSV exports, class-list template and database-backed printable reports; keep imports in Admissions
-- [ ] Test validation, central weighting and authorization; verify available preview flows
+- [x] Audit attachment and replace eager assessment scans with selected, on-demand roster reads
+- [x] Save roster scores through existing authorized assessment functions; share report calculations
+- [x] Add selected CSV exports, class-list template and database-backed printable reports; exclude unsafe imports/restores
+- [x] Test validation, central weighting and authorization; verify public preview
+- [ ] Verify hosted roster save/export/report end to end — blocked: external Supabase has no managed browser test session
 
 ## Data Access enforcement
 - [x] Renumber configuration areas consecutively and verify shared navigation references

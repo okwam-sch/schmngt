@@ -143,7 +143,16 @@ export const saveAssessment = createServerFn({ method: "POST" })
       .insert(row)
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error?.code === "23505" && data.createId) {
+      const { data: existing, error: readError } = await context.supabase.from("student_assessments")
+        .select("id, admission_id, class_name, term, subject, assessment_type, score, out_of, remark")
+        .eq("id", data.createId).maybeSingle();
+      if (!readError && existing && existing.admission_id === row.admission_id && existing.class_name === row.class_name && existing.term === row.term && existing.subject === row.subject && existing.assessment_type === row.assessment_type && Number(existing.score) === row.score && Number(existing.out_of) === row.out_of && existing.remark === row.remark) {
+        return { id: existing.id, updated: false };
+      }
+      throw new Error("This save reference already exists with different data. Fetch records before retrying.");
+    }
+    if (error || !inserted) throw new Error(error?.message ?? "Could not save assessment.");
     return { id: inserted.id, updated: false };
   });
 

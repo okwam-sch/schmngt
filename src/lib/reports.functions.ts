@@ -10,8 +10,8 @@ import { RULES_FEATURE_KEY, assessmentWeights, flag, gradeFromBands, num, parseR
 const STAFF_ROLES = ["super_admin", "school_manager", "staff"];
 
 async function assertStaff(supabase: any, userId: string) {
-  const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  if (!data || !STAFF_ROLES.includes(data.role)) throw new Error("Forbidden");
+  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (error || !data?.some((r: { role: string }) => STAFF_ROLES.includes(r.role))) throw new Error("Forbidden");
 }
 
 /** Students and the terms that have assessment records. */

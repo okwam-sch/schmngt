@@ -48,3 +48,8 @@
 - [x] Parent dashboard: real average score and attendance %, per-period summaries, paged lists
 - [x] Shared pagination on Assessment, Admissions, Attendance history, Finance tables
 - [x] Branding logo: Super Admin uploads logo (no URL); one shared logo component sized per context (pages, dashboards, modules, documents, watermark); logo as default profile picture; branding fields (name, tagline, colours, language) centralized
+
+## Enterprise consolidation audit (Oct 2026)
+- [x] Centralized all CSV export/download into src/lib/csv.ts (was 4 separate implementations in admissions, user-management, assessment, attendance, user-verification); formula-injection safe everywhere now
+- [x] Verified existing centralization holds: one school resolver, one teaching scope, one calendar, one rules source, shared pagination/print/branding — no further duplicates found
+- [ ] Verify hosted exports end to end — blocked: external Supabase has no managed browser test session

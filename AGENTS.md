@@ -28,3 +28,4 @@
 - Subdirectories have their own AGENTS.md (src/lib) — read it before changing files there.
 - Assessment uses selected, paged authenticated reads and existing per-record saves; assessment.ts supplies the same weighted totals to assessment and termly reports, preventing divergent grading.
 - Printable documents use printDocument in an isolated same-origin frame so portal controls never appear on paper.
+- All CSV building and downloading goes through src/lib/csv.ts (csvCell/toCsv/recordsToCsv/downloadCsv/downloadRecordsCsv) — formula-injection safe, BOM-prefixed, delayed URL revoke; no module-local CSV helpers.

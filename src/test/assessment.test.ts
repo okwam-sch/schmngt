@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { assessmentCsv, assessmentTotals, assertStudentClass } from "@/lib/assessment";
+import { assessmentTotals, assertStudentClass } from "@/lib/assessment";
+import { toCsv } from "@/lib/csv";
 import { assessmentPageSchema } from "@/lib/assessment.schemas";
 import { defaultRules } from "@/lib/academic-rules";
 import { assertTeaches, loadTeachingScope } from "@/lib/teaching.server";
@@ -90,7 +91,7 @@ describe("selected database assessment", () => {
     expect(total).toMatchObject({ cls: 40, exam: 0, total: 40, examTasks: 0 });
   });
   it("neutralizes formula cells and escapes commas and quotes", () => {
-    expect(assessmentCsv([["=HYPERLINK(1)", 'A, "B"', 80]])).toBe(
+    expect(toCsv([["=HYPERLINK(1)", 'A, "B"', 80]])).toBe(
       '\uFEFF"\'=HYPERLINK(1)","A, ""B""","80"',
     );
   });

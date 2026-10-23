@@ -53,3 +53,10 @@
 - [x] Centralized all CSV export/download into src/lib/csv.ts (was 4 separate implementations in admissions, user-management, assessment, attendance, user-verification); formula-injection safe everywhere now
 - [x] Verified existing centralization holds: one school resolver, one teaching scope, one calendar, one rules source, shared pagination/print/branding — no further duplicates found
 - [ ] Verify hosted exports end to end — blocked: external Supabase has no managed browser test session
+
+## Multi-tenancy isolation audit (Oct 2026, uploaded directive)
+- [ ] Baseline inventory: tenant/identity model, RLS policies, server endpoints (3 explore agents)
+- [ ] Classify every module/table for tenant scoping; document coverage gaps
+- [ ] Verify super-admin multi-school model (ownership vs active context, no accidental cross-school access)
+- [ ] Remediate confirmed isolation failures with smallest secure change
+- [ ] Add cross-tenant security tests; run full suite; document evidence and limitations

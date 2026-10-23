@@ -1,0 +1,1 @@
+CREATE POLICY "Signed-in users can view schools" ON public.schools FOR SELECT TO authenticated USING (true);

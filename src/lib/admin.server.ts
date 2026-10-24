@@ -48,6 +48,24 @@ export async function assertSuperAdmin(supabase: SupabaseClient, userId: string)
   }
 }
 
+/**
+ * Guards account administration against privilege escalation: a School
+ * Manager may manage ordinary accounts, but only a Super Admin may modify,
+ * suspend, or reset the password of an account that holds an administrator
+ * role. Super Admins pass unconditionally.
+ */
+export async function assertCanManageAccount(
+  supabase: SupabaseClient,
+  callerId: string,
+  targetUserId: string,
+) {
+  if (await isSuperAdmin(supabase, callerId)) return;
+  const targetRoles = await getRoles(supabase, targetUserId);
+  if (targetRoles.some((r) => ADMIN_ROLES.has(r))) {
+    throw new Error("Forbidden: only a Super Admin can modify an administrator account.");
+  }
+}
+
 export async function logAudit(
   supabase: SupabaseClient,
   actorId: string,

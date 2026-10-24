@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { resolveProvisionedSchool } from "@/lib/school.server";
 import type { Json } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertSuperAdmin, isSuperAdmin } from "@/lib/admin.server";
+import { assertAdmin, assertSuperAdmin, isSuperAdmin } from "@/lib/admin.server";
 import {
   DEFAULT_LISTS,
   FINANCE_AREAS,
@@ -48,6 +48,7 @@ export const getFinanceConfiguration = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => schoolScope.partial().parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    await assertAdmin(supabase, context.userId);
 
     const { data: schools, error: sErr } = await supabase
       .from("schools")

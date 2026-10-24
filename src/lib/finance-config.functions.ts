@@ -48,6 +48,7 @@ export const getFinanceConfiguration = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => schoolScope.partial().parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    await assertAdmin(supabase, context.userId);
 
     const { data: schools, error: sErr } = await supabase
       .from("schools")

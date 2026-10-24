@@ -262,6 +262,7 @@ export const updateAccount = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => updateAccountSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
+    await assertCanManageAccount(context.supabase, context.userId, data.userId);
     if (data.role === "super_admin" || data.role === "school_manager") {
       await assertSuperAdmin(context.supabase, context.userId);
     }
@@ -316,6 +317,7 @@ export const setAccountStatus = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => statusSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
+    await assertCanManageAccount(context.supabase, context.userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("profiles")
@@ -411,6 +413,7 @@ export const adminResetPassword = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => adminResetSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
+    await assertCanManageAccount(context.supabase, context.userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
       password: data.password,
@@ -508,6 +511,7 @@ export const resolveResetRequest = createServerFn({ method: "POST" })
       .ilike("email", request.email)
       .maybeSingle();
     if (!profile) throw new Error("No account exists for that email address.");
+    await assertCanManageAccount(context.supabase, context.userId, profile.id);
 
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(profile.id, {
       password: data.password!,

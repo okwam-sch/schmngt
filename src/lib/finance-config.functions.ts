@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { resolveProvisionedSchool } from "@/lib/school.server";
 import type { Json } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertSuperAdmin, isSuperAdmin } from "@/lib/admin.server";
+import { assertAdmin, assertSuperAdmin, isSuperAdmin } from "@/lib/admin.server";
 import {
   DEFAULT_LISTS,
   FINANCE_AREAS,

@@ -60,3 +60,9 @@
 - [ ] Verify super-admin multi-school model (ownership vs active context, no accidental cross-school access)
 - [ ] Remediate confirmed isolation failures with smallest secure change
 - [ ] Add cross-tenant security tests; run full suite; document evidence and limitations
+- [x] Baseline inventory: tenant/identity model, RLS policies, server endpoints (3 explore agents) — report: docs/tenancy-audit-2026-10.md
+- [x] Fix critical privilege escalation: assertCanManageAccount guard on updateAccount, setAccountStatus, adminResetPassword, resolveResetRequest
+- [x] Scope staff RLS on student_performance/assessments/exeat to teaching assignments; require admin for getFinanceConfiguration
+- [x] Add account-guard tests; 70/70 pass; build OK
+- [ ] Architectural: school membership model + school_id on operational tables + active-school switching (A1-A3) — needs product decision, app is single-school today
+- [ ] Verify privileged-target guard end to end as signed-in manager — blocked: external Supabase has no managed browser test session

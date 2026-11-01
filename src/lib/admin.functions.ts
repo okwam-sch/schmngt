@@ -21,6 +21,7 @@ import {
 import {
   ACCOUNT_COLUMNS,
   assertAdmin,
+  assertCanManageAccount,
   assertSuperAdmin,
   isAdmin,
   isSuperAdmin,

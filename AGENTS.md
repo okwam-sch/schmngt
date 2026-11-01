@@ -29,3 +29,4 @@
 - Assessment uses selected, paged authenticated reads and existing per-record saves; assessment.ts supplies the same weighted totals to assessment and termly reports, preventing divergent grading.
 - Printable documents use printDocument in an isolated same-origin frame so portal controls never appear on paper.
 - All CSV building and downloading goes through src/lib/csv.ts (csvCell/toCsv/recordsToCsv/downloadCsv/downloadRecordsCsv) — formula-injection safe, BOM-prefixed, delayed URL revoke; no module-local CSV helpers.
+- Account administration (updateAccount, setAccountStatus, adminResetPassword, resolveResetRequest) must pass assertCanManageAccount so only a Super Admin can modify an account holding an administrator role — prevents manager-to-admin takeover.

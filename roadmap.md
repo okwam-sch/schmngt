@@ -1,5 +1,11 @@
 # Roadmap
 
+## School membership system
+- [ ] Add protected memberships, validated active-school context and school-scoped record access
+- [ ] Add portal school switching and membership administration; clear school-specific state on switch
+- [ ] Integrate centralized school resolution, permissions, configuration and privileged operations
+- [ ] Run regression and two-school access tests; document external sign-in verification limitations
+
 ## Assessment attachment integration
 - [x] Audit attachment and replace eager assessment scans with selected, on-demand roster reads
 - [x] Save roster scores through existing authorized assessment functions; share report calculations

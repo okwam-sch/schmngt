@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { Json } from "@/integrations/supabase/types";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertSuperAdmin, logAudit } from "@/lib/admin.server";
 import {
   brandingSchema,

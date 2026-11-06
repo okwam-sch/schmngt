@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 
 /** Every teaching assignment (teacher → class → subject) in the school. */
 export const listTeachingAssignments = createServerFn({ method: "GET" })

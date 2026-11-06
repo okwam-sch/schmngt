@@ -1,6 +1,6 @@
 import { generateStrongPassword } from "./password-policy";
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin, logAudit } from "@/lib/admin.server";
 import {
   admissionIdSchema,

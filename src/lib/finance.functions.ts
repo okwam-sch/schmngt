@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { assertPeriodOpen, calendarPeriodEnd } from "@/lib/academic-calendar.server";
 import { periodOfLabel } from "@/lib/academic-calendar";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin, logAudit } from "@/lib/admin.server";
 import { classLevelCode } from "@/lib/education-levels.server";
 import { levelScopeError } from "@/lib/education-levels";

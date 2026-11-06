@@ -1,6 +1,6 @@
 import { attendanceBackdateReason } from "@/lib/academic-rules";
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertPeriodOpen, loadRules } from "@/lib/academic-calendar.server";
 import { registerQuerySchema, saveAttendanceSchema } from "@/lib/attendance.schemas";
 

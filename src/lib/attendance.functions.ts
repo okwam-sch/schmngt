@@ -1,6 +1,6 @@
 import { attendanceBackdateReason } from "@/lib/academic-rules";
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertPeriodOpen, loadRules } from "@/lib/academic-calendar.server";
 import { registerQuerySchema, saveAttendanceSchema } from "@/lib/attendance.schemas";
 
@@ -125,7 +125,7 @@ export const getAttendanceHistory = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("student_attendance")
-      .select("attendance_date, status, admissions(class_admitted)")
+      .select("attendance_date, status, admissions!admission_id(class_admitted)")
       .order("attendance_date", { ascending: false })
       .limit(1000);
     if (error) throw new Error(error.message);

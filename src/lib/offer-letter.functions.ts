@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin } from "@/lib/admin.server";
 import { eligibleForOffer } from "@/lib/offer-letter";
 import { PEOPLE_FEATURE_KEY, letterTerms, parsePeopleRules } from "@/lib/people-rules";

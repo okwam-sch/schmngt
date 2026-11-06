@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryOptions } from "@tanstack/react-query";
 import { createClient } from "@supabase/supabase-js";
 import { readBranding, type Branding } from "./branding.server";
+import { requireSupabaseAuth } from './school-auth';
+
+export const getSchoolBranding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => readBranding(context.supabase));
 
 export const DEFAULT_SCHOOL_NAME = "School Management Portal";
 export type PublicBranding = Branding;

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { assertPeriodOpen, calendarPeriodEnd } from "@/lib/academic-calendar.server";
 import { periodOfLabel } from "@/lib/academic-calendar";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin, logAudit } from "@/lib/admin.server";
 import { classLevelCode } from "@/lib/education-levels.server";
 import { levelScopeError } from "@/lib/education-levels";
@@ -27,7 +27,7 @@ export const getFinancialOverview = createServerFn({ method: "GET" })
       supabase.from("finance_payroll").select("*").order("created_at", { ascending: false }),
       supabase
         .from("student_fees")
-        .select("*, admissions(admission_number, student_name, class_admitted)")
+        .select("*, admissions!admission_id(admission_number, student_name, class_admitted)")
         .order("created_at", { ascending: false }),
       supabase
         .from("admissions")

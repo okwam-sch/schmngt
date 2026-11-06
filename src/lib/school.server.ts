@@ -8,12 +8,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function resolveProvisionedSchool(
   supabase: SupabaseClient | any,
 ): Promise<{ id: string; name: string; currency: string; locale: string } | null> {
+  const { data: schoolId, error } = await supabase.rpc('active_school_id');
+  if (error) throw new Error('Could not verify school membership.');
+  if (!schoolId) return null;
   const { data } = await supabase
     .from("schools")
     .select("id, name, currency, locale")
-    .order("active", { ascending: false })
-    .order("created_at")
-    .limit(1)
+    .eq('id', schoolId)
     .maybeSingle();
   return (data as any) ?? null;
 }

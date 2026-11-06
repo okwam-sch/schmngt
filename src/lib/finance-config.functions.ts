@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { resolveProvisionedSchool } from "@/lib/school.server";
 import type { Json } from "@/integrations/supabase/types";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin, assertSuperAdmin, isSuperAdmin } from "@/lib/admin.server";
 import {
   DEFAULT_LISTS,
@@ -57,7 +57,9 @@ export const getFinanceConfiguration = createServerFn({ method: "POST" })
       .order("created_at");
     if (sErr) throw new Error(sErr.message);
 
-    const schoolId = data.schoolId ?? schools?.[0]?.id ?? null;
+    const active = await resolveProvisionedSchool(supabase);
+    if (data.schoolId && data.schoolId !== active?.id) throw new Error('Switch schools before opening its configuration.');
+    const schoolId = active?.id ?? null;
     if (!schoolId) {
       return { schools: schools ?? [], schoolId: null, sections: [], items: [], rules: [], audit: [] };
     }

@@ -38,6 +38,7 @@ describe("selected database assessment", () => {
   it("takes privileges from protected roles, not editable profiles", async () => {
     const tables: string[] = [];
     const client = {
+      rpc: async () => ({ data: 'student' }),
       from: (table: string) => {
         tables.push(table);
         return {

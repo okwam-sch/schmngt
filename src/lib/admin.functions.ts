@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { assertPeriodOpen } from "@/lib/academic-calendar.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/school-auth";
 import {
   adminResetSchema,
   bulkImportSchema,
@@ -27,6 +27,7 @@ import {
   isSuperAdmin,
   logAudit,
 } from "@/lib/admin.server";
+import { resolveProvisionedSchool } from "./school.server";
 
 /** Has the system already been initialised with a super admin? */
 export const getSetupStatus = createServerFn({ method: "GET" }).handler(async () => {
@@ -157,13 +158,16 @@ async function syncTeachingAssignments(
   classes: string[] | undefined,
   subjects: string[] | undefined,
 ) {
+  const { data: membership } = await client.from('school_memberships').select('school_id').eq('user_id', teacherId).eq('status', 'active').maybeSingle();
+  if (!membership) throw new Error('Select a single school membership before editing teaching assignments.');
+  const schoolId = membership.school_id;
   const isTeacher = (position ?? "").trim().toLowerCase() === "teacher";
   let rows: { teacher_id: string; class_name: string; subject: string }[] = [];
   if (isTeacher && (classes?.length ?? 0) > 0) {
     const { matchTeachingPairs, teachingLevelError } = await import("@/lib/teaching-levels");
     const [{ data: cls }, { data: subs }] = await Promise.all([
-      client.from("school_classes").select("name, level_code").eq("active", true),
-      client.from("subjects").select("name, level_code").eq("active", true),
+      client.from("school_classes").select("name, level_code").eq("school_id", schoolId).eq("active", true),
+      client.from("subjects").select("name, level_code").eq("school_id", schoolId).eq("active", true),
     ]);
     const result = matchTeachingPairs(
       classes ?? [],
@@ -173,9 +177,9 @@ async function syncTeachingAssignments(
     );
     const problem = teachingLevelError(result);
     if (problem) throw new Error(problem);
-    rows = result.pairs.map((p) => ({ teacher_id: teacherId, ...p }));
+    rows = result.pairs.map((p) => ({ teacher_id: teacherId, school_id: schoolId, ...p }));
   }
-  await client.from("teaching_assignments").delete().eq("teacher_id", teacherId);
+  await client.from("teaching_assignments").delete().eq("teacher_id", teacherId).eq("school_id", schoolId);
   if (rows.length === 0) return;
   const { error } = await client.from("teaching_assignments").insert(rows);
   if (error) throw new Error(error.message);
@@ -240,6 +244,10 @@ export const createAccount = createServerFn({ method: "POST" })
       throw new Error(profileError.message);
     }
     await supabaseAdmin.from("user_roles").insert({ user_id: user.user.id, role: data.role });
+    const school = await resolveProvisionedSchool(context.supabase);
+    if (!school) throw new Error('Select an active school before creating accounts.');
+    const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: data.role === 'super_admin' ? 'school_manager' : data.role, access_level: data.role === 'super_admin' ? 'administrator' : data.accessLevel ?? DEFAULT_LEVEL[data.role] });
+    if (membershipError) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); throw new Error('Could not assign school access.'); }
     await syncTeachingAssignments(
       supabaseAdmin,
       user.user.id,
@@ -264,6 +272,8 @@ export const updateAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     await assertCanManageAccount(context.supabase, context.userId, data.userId);
+    const { data: memberships } = await context.supabase.from("school_memberships").select("id").eq("user_id", data.userId);
+    if ((memberships?.length ?? 0) > 1) throw new Error("Use School memberships to change access for shared identities.");
     if (data.role === "super_admin" || data.role === "school_manager") {
       await assertSuperAdmin(context.supabase, context.userId);
     }
@@ -295,6 +305,8 @@ export const updateAccount = createServerFn({ method: "POST" })
     await supabaseAdmin.auth.admin.updateUserById(data.userId, { email: data.email });
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
+    const school = await resolveProvisionedSchool(context.supabase);
+    if (school) await supabaseAdmin.from('school_memberships').update({ role: data.role === 'super_admin' ? 'school_manager' : data.role, access_level: data.accessLevel === 'super_administrator' ? 'administrator' : data.accessLevel }).eq('user_id', data.userId).eq('school_id', school.id);
     await syncTeachingAssignments(
       supabaseAdmin,
       data.userId,
@@ -398,6 +410,10 @@ export const bulkImportAccounts = createServerFn({ method: "POST" })
         class_name: row.className || null,
       });
       await supabaseAdmin.from("user_roles").insert({ user_id: user.user.id, role: row.role });
+      const school = await resolveProvisionedSchool(context.supabase);
+      if (!school) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); failed.push(`${row.email}: no active school`); continue; }
+      const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: row.role === 'super_admin' ? 'school_manager' : row.role, access_level: row.role === 'super_admin' ? 'administrator' : DEFAULT_LEVEL[row.role] });
+      if (membershipError) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); failed.push(`${row.email}: school membership failed`); continue; }
       created += 1;
     }
 
@@ -456,7 +472,7 @@ export const adminResetPassword = createServerFn({ method: "POST" })
 export const listResetRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context.supabase, context.userId);
     // Reset requests' own-row policies read auth.users, which signed-in roles cannot;
     // admins are verified above, so read through the privileged client.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -477,7 +493,7 @@ export const resolveResetRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => resolveResetRequestSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: request, error: readError } = await supabaseAdmin
@@ -544,7 +560,7 @@ export const deleteResetRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => resetRequestIdSchema.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("password_reset_requests")
@@ -741,7 +757,7 @@ export const getPortalOverview = createServerFn({ method: "GET" })
     const { data: activity } = await query;
 
     let pendingResets = 0;
-    if (admin) {
+    if (await isSuperAdmin(context.supabase, context.userId)) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { count } = await supabaseAdmin
         .from("password_reset_requests")

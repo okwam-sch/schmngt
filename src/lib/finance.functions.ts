@@ -27,7 +27,7 @@ export const getFinancialOverview = createServerFn({ method: "GET" })
       supabase.from("finance_payroll").select("*").order("created_at", { ascending: false }),
       supabase
         .from("student_fees")
-        .select("*, admissions(admission_number, student_name, class_admitted)")
+        .select("*, admissions!admission_id(admission_number, student_name, class_admitted)")
         .order("created_at", { ascending: false }),
       supabase
         .from("admissions")

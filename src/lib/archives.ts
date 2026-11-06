@@ -43,7 +43,7 @@ export const ARCHIVE_SOURCES: ArchiveSource[] = [
     module: "Attendance",
     table: "student_attendance",
     dateColumn: "attendance_date",
-    select: "id, attendance_date, status, note, admissions(student_name, admission_number, class_admitted)",
+    select: "id, attendance_date, status, note, admissions!admission_id(student_name, admission_number, class_admitted)",
     columns: [
       { key: "student", label: "Student", path: "admissions.student_name" },
       { key: "class", label: "Class", path: "admissions.class_admitted" },
@@ -58,7 +58,7 @@ export const ARCHIVE_SOURCES: ArchiveSource[] = [
     module: "Assessment",
     table: "student_assessments",
     dateColumn: "created_at",
-    select: "id, created_at, term, subject, assessment_type, score, out_of, admissions(student_name, class_admitted)",
+    select: "id, created_at, term, subject, assessment_type, score, out_of, admissions!admission_id(student_name, class_admitted)",
     columns: [
       { key: "student", label: "Student", path: "admissions.student_name" },
       { key: "term", label: "Term", path: "term" },
@@ -74,7 +74,7 @@ export const ARCHIVE_SOURCES: ArchiveSource[] = [
     module: "Financial Management",
     table: "student_fees",
     dateColumn: "created_at",
-    select: "id, created_at, term, amount_due, amount_paid, status, admissions(student_name)",
+    select: "id, created_at, term, amount_due, amount_paid, status, admissions!admission_id(student_name)",
     columns: [
       { key: "student", label: "Student", path: "admissions.student_name" },
       { key: "term", label: "Term / fee", path: "term" },

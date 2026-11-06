@@ -78,7 +78,7 @@ export const listAssessments = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("student_assessments")
       .select(
-        "id, admission_id, class_name, term, subject, assessment_type, score, out_of, remark, created_at, admissions(student_name, admission_number)",
+        "id, admission_id, class_name, term, subject, assessment_type, score, out_of, remark, created_at, admissions!admission_id(student_name, admission_number)",
         { count: "exact" },
       )
       .eq("class_name", selection.className)

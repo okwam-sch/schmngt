@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AccessLevel, Role } from "@/lib/access";
+import { useActiveSchool } from './useActiveSchool';
 
 export interface PortalProfile {
   id: string;
@@ -81,5 +82,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSession() {
-  return useContext(SessionContext);
+  const identity = useContext(SessionContext);
+  const school = useActiveSchool();
+  return school?.role && school.accessLevel && identity.profile
+    ? { ...identity, profile: { ...identity.profile, role: school.role, access_level: school.accessLevel } }
+    : identity;
 }

@@ -15,6 +15,8 @@ import { ACCESS_LABEL, MODULE_CATEGORIES, ROLE_META, modulesFor } from "@/lib/ac
 import { getPortalOverview } from "@/lib/admin.functions";
 import { ForcePasswordChange } from "@/components/portal/ForcePasswordChange";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
+import { ActiveSchoolProvider } from '@/hooks/useActiveSchool';
+import { SchoolMemberships } from '@/components/portal/SchoolMemberships';
 
 export const Route = createFileRoute("/_authenticated/portal")({
   head: ({ match }) => ({
@@ -34,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/portal")({
       },
     ],
   }),
-  component: PortalLayout,
+  component: () => <ActiveSchoolProvider><SchoolMemberships /><PortalLayout /></ActiveSchoolProvider>,
 });
 
 function PortalLayout() {

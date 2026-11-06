@@ -16,13 +16,10 @@ export async function getRoles(supabase: SupabaseClient, userId: string): Promis
     if (row?.role) roles.add(row.role as string);
   }
 
-  if (roles.size === 0) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-    if (profile?.role) roles.add(profile.role as string);
+  if (!roles.has('super_admin')) {
+    const { data: effective, error } = await supabase.rpc('school_role');
+    if (error) throw new Error('Could not verify school permissions.');
+    return effective ? [effective] : [];
   }
 
   return [...roles];
@@ -60,6 +57,10 @@ export async function assertCanManageAccount(
   targetUserId: string,
 ) {
   if (await isSuperAdmin(supabase, callerId)) return;
+  const { data: target, error } = await supabase.from('profiles').select('id').eq('id', targetUserId).maybeSingle();
+  if (error || !target) throw new Error('Forbidden: account is outside your school.');
+  const { data: shared, error: membershipError } = await supabase.from('school_memberships').select('school_id').eq('user_id', targetUserId);
+  if (membershipError || (shared?.length ?? 0) !== 1) throw new Error('Only a Super Admin can modify an identity shared between schools.');
   const targetRoles = await getRoles(supabase, targetUserId);
   if (targetRoles.some((r) => ADMIN_ROLES.has(r))) {
     throw new Error("Forbidden: only a Super Admin can modify an administrator account.");

@@ -22,8 +22,8 @@ import {
 const STAFF_ROLES = ["super_admin", "school_manager", "staff"];
 
 async function assertStaff(supabase: any, userId: string) {
-  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  if (error || !data?.some((r: { role: string }) => STAFF_ROLES.includes(r.role)))
+  const { data, error } = await supabase.rpc('school_role');
+  if (error || !STAFF_ROLES.includes(data))
     throw new Error("Forbidden");
 }
 

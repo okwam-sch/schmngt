@@ -19,7 +19,9 @@ export async function loadTeachingScope(supabase: any, userId: string): Promise<
     .select("role")
     .eq("user_id", userId);
   if (error) throw new Error("Could not verify teaching permissions.");
-  const assigned = (roles ?? []).map((r: { role: string }) => r.role);
+  const { data: effective, error: roleError } = await supabase.rpc('school_role');
+  if (roleError) throw new Error('Could not verify school teaching permissions.');
+  const assigned = (roles ?? []).some((r: { role: string }) => r.role === 'super_admin') ? ['super_admin'] : [effective];
   const role: string =
     ["super_admin", "school_manager", "staff"].find((r) => assigned.includes(r)) ?? "";
   if (role === "super_admin" || role === "school_manager") {

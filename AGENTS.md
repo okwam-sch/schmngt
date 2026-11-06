@@ -30,3 +30,5 @@
 - Printable documents use printDocument in an isolated same-origin frame so portal controls never appear on paper.
 - All CSV building and downloading goes through src/lib/csv.ts (csvCell/toCsv/recordsToCsv/downloadCsv/downloadRecordsCsv) — formula-injection safe, BOM-prefixed, delayed URL revoke; no module-local CSV helpers.
 - Account administration (updateAccount, setAccountStatus, adminResetPassword, resolveResetRequest) must pass assertCanManageAccount so only a Super Admin can modify an account holding an administrator role — prevents manager-to-admin takeover.
+- School access uses protected school_memberships and application-owned school-auth middleware; the per-tab selector is forwarded to database authorization, never trusted as permission. Operational RLS restricts every request to one active school; switching reloads the document to discard cached state and in-flight responses.
+- Global identity changes for shared users and platform reset queues are Super Admin-only; school roles and suspension are administered through memberships so one school cannot disable another school's identity.

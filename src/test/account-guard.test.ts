@@ -4,18 +4,20 @@ import { assertCanManageAccount } from "@/lib/admin.server";
 /** Fake Supabase client serving fixed role rows per user. */
 function fakeSupabase(roles: Record<string, string[]>) {
   return {
+    rpc: async () => ({ data: 'school_manager' }),
     from: (table: string) => {
-      if (table !== "user_roles" && table !== "profiles") throw new Error(`unexpected ${table}`);
+      if (!['user_roles','profiles','school_memberships'].includes(table)) throw new Error(`unexpected ${table}`);
       return {
         select: () => ({
-          eq: async (_col: string, id: string) => ({
+          eq: (_col: string, id: string) => {
+            const result = {
             data:
               table === "user_roles"
                 ? (roles[id] ?? []).map((role) => ({ role }))
-                : roles[id]?.length
-                  ? null
-                  : [{ role: "staff" }],
-          }),
+                : table === 'school_memberships' ? [{ school_id: 'school-a' }] : { id },
+            };
+            return { ...result, maybeSingle: async () => result };
+          },
         }),
       };
     },

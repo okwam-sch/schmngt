@@ -59,12 +59,12 @@ export async function assertCanManageAccount(
   if (await isSuperAdmin(supabase, callerId)) return;
   const { data: target, error } = await supabase.from('profiles').select('id').eq('id', targetUserId).maybeSingle();
   if (error || !target) throw new Error('Forbidden: account is outside your school.');
-  const { data: shared, error: membershipError } = await supabase.from('school_memberships').select('school_id').eq('user_id', targetUserId);
+  const { data: shared, error: membershipError } = await supabase.from('school_memberships').select('school_id, role').eq('user_id', targetUserId);
   if (membershipError || (shared?.length ?? 0) !== 1) throw new Error('Only a Super Admin can modify an identity shared between schools.');
   const { data: targetRoleRows, error: targetRoleError } = await supabase.from('user_roles').select('role').eq('user_id', targetUserId);
   if (targetRoleError) throw new Error('Could not verify target privileges.');
   const targetRoles = (targetRoleRows ?? []).map(r => r.role);
-  if (targetRoles.some((r) => ADMIN_ROLES.has(r))) {
+  if (targetRoles.some((r) => ADMIN_ROLES.has(r)) || shared?.some(m => ADMIN_ROLES.has(m.role))) {
     throw new Error("Forbidden: only a Super Admin can modify an administrator account.");
   }
 }

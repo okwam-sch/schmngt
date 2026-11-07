@@ -13,11 +13,12 @@ export function SchoolMemberships() {
   const list = useServerFn(listSchoolMemberships);
   const save = useServerFn(saveSchoolMembership);
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'staff' | 'school_manager' | 'student' | 'parent'>('staff');
   const [status, setStatus] = useState<'active' | 'suspended'>('active');
-  const members = useQuery({ queryKey: ['school-memberships', school?.school?.id], queryFn: () => list(), enabled: open && !!school?.platform });
+  const members = useQuery({ queryKey: ['school-memberships', school?.school?.id, page], queryFn: () => list({ data: { page, pageSize: 50 } }), enabled: open && !!school?.platform });
   if (!school?.platform || !school.school) return null;
   return <section className="border-b border-border px-6 py-3">
     <Button variant="outline" onClick={() => setOpen(v => !v)}><Users className="size-4" />School memberships</Button>

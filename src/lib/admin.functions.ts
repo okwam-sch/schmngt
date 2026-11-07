@@ -154,13 +154,13 @@ type AdminClient = typeof import("@/integrations/supabase/client.server")["supab
 async function syncTeachingAssignments(
   client: AdminClient,
   teacherId: string,
+  schoolId: string,
   position: string | null | undefined,
   classes: string[] | undefined,
   subjects: string[] | undefined,
 ) {
-  const { data: membership } = await client.from('school_memberships').select('school_id').eq('user_id', teacherId).eq('status', 'active').maybeSingle();
+  const { data: membership } = await client.from('school_memberships').select('school_id').eq('user_id', teacherId).eq('school_id', schoolId).eq('status', 'active').maybeSingle();
   if (!membership) throw new Error('Select a single school membership before editing teaching assignments.');
-  const schoolId = membership.school_id;
   const isTeacher = (position ?? "").trim().toLowerCase() === "teacher";
   let rows: { teacher_id: string; class_name: string; subject: string }[] = [];
   if (isTeacher && (classes?.length ?? 0) > 0) {
@@ -251,6 +251,7 @@ export const createAccount = createServerFn({ method: "POST" })
     await syncTeachingAssignments(
       supabaseAdmin,
       user.user.id,
+      school.id,
       data.position,
       data.teachingClasses,
       data.teachingSubjects,
@@ -306,10 +307,12 @@ export const updateAccount = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
     const school = await resolveProvisionedSchool(context.supabase);
+    if (!school) throw new Error('An active school is required.');
     if (school) await supabaseAdmin.from('school_memberships').update({ role: data.role === 'super_admin' ? 'school_manager' : data.role, access_level: data.accessLevel === 'super_administrator' ? 'administrator' : data.accessLevel }).eq('user_id', data.userId).eq('school_id', school.id);
     await syncTeachingAssignments(
       supabaseAdmin,
       data.userId,
+      school.id,
       data.position,
       data.teachingClasses,
       data.teachingSubjects,

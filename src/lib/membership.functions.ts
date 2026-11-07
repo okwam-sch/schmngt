@@ -40,11 +40,13 @@ export const saveSchoolMembership = createServerFn({ method: 'POST' }).middlewar
     return { ok: true };
   });
 
-export const listSchoolMemberships = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+export const listSchoolMemberships = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ page: z.number().int().min(0).default(0), pageSize: z.number().int().min(1).max(100).default(50) }).parse(input ?? {}))
+  .handler(async ({ context, data: paging }) => {
   await assertSuperAdmin(context.supabase, context.userId);
   const school = await resolveProvisionedSchool(context.supabase);
-  if (!school) return [];
-  const { data, error } = await context.supabase.from('school_memberships').select('id, role, access_level, status, profiles!user_id(full_name, email)').eq('school_id', school.id).order('created_at').limit(1000);
+  if (!school) return { rows: [], count: 0 };
+  const { data, error, count } = await context.supabase.from('school_memberships').select('id, role, access_level, status, profiles!user_id(full_name, email)', { count: 'exact' }).eq('school_id', school.id).order('created_at').order('id').range(paging.page * paging.pageSize, (paging.page + 1) * paging.pageSize - 1);
   if (error) throw new Error('Could not load memberships.');
-  return data ?? [];
+  return { rows: data ?? [], count: count ?? 0 };
 });

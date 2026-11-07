@@ -19,7 +19,15 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).middle
   const schoolId = request.headers.get('x-school-id');
   const client = createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: request.headers.get('authorization') ?? '', ...(schoolId ? { 'x-school-id': schoolId } : {}) } },
+    global: {
+      headers: { Authorization: request.headers.get('authorization') ?? '', ...(schoolId ? { 'x-school-id': schoolId } : {}) },
+      fetch: (input, init) => {
+        const headers = new Headers(init?.headers);
+        if (key.startsWith('sb_') && headers.get('authorization') === `Bearer ${key}`) headers.delete('authorization');
+        headers.set('apikey', key);
+        return fetch(input, { ...init, headers });
+      },
+    },
   });
   const { data: identity, error: identityError } = await client.from('profiles').select('status').eq('id', context.userId).maybeSingle();
   if (identityError || identity?.status !== 'active') throw new Error('This account is not active.');

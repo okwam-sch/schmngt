@@ -218,6 +218,8 @@ export const updateAdmission = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (current?.student_profile_id) {
+      const { count: memberships } = await supabaseAdmin.from('school_memberships').select('id', { count: 'exact', head: true }).eq('user_id', current.student_profile_id);
+      if (memberships === 1) {
       await supabaseAdmin
         .from("profiles")
         .update({
@@ -226,6 +228,7 @@ export const updateAdmission = createServerFn({ method: "POST" })
           gender: row.gender,
         })
         .eq("id", current.student_profile_id);
+      }
     }
 
     await logAudit(context.supabase, context.userId, {

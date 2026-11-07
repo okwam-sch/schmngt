@@ -3,6 +3,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSchoolContext } from '@/lib/membership.functions';
 import { rememberSchoolId } from '@/lib/school-context';
+import { Button } from '@/components/ui/button';
 import { invalidateFinanceConfigCache } from './useFinanceConfig';
 import { invalidateAcademicCalendar } from './useAcademicCalendar';
 import { invalidateAcademicRules } from './useAcademicRules';
@@ -18,7 +19,7 @@ export function ActiveSchoolProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SchoolContext | null>(null);
   const [error, setError] = useState('');
   useEffect(() => { let active = true; void load().then(s => { if (active) { if (s.school) rememberSchoolId(s.school.id); setState(s); } }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Could not load school access.'); }); return () => { active = false; }; }, []);
-  if (error) return <div className="p-8 text-destructive" role="alert">{error}</div>;
+  if (error) return <div className="space-y-3 p-8" role="alert"><p className="text-destructive">{error}</p><Button variant="outline" onClick={() => { window.sessionStorage.removeItem('portal-school'); window.location.assign('/portal'); }}>Reload school access</Button></div>;
   if (!state) return <div className="p-8 text-muted-foreground">Loading school access…</div>;
   const switchSchool = async (id: string) => {
     if (!state.schools.some(s => s?.id === id)) return;

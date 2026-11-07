@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertCanManageAccount } from "@/lib/admin.server";
+import { assertCanManageAccount, getRoles } from "@/lib/admin.server";
 
 /** Fake Supabase client serving fixed role rows per user. */
-function fakeSupabase(roles: Record<string, string[]>) {
+function fakeSupabase(roles: Record<string, string[]>, options: { schoolRole?: string | null; shared?: number; visible?: boolean; memberRole?: string } = {}) {
   return {
-    rpc: async () => ({ data: 'school_manager' }),
+    rpc: async () => ({ data: options.schoolRole === undefined ? 'school_manager' : options.schoolRole }),
     from: (table: string) => {
       if (!['user_roles','profiles','school_memberships'].includes(table)) throw new Error(`unexpected ${table}`);
       return {
@@ -14,7 +14,7 @@ function fakeSupabase(roles: Record<string, string[]>) {
             data:
               table === "user_roles"
                 ? (roles[id] ?? []).map((role) => ({ role }))
-                : table === 'school_memberships' ? [{ school_id: 'school-a' }] : { id },
+                : table === 'school_memberships' ? Array.from({ length: options.shared ?? 1 }, (_, i) => ({ school_id: `school-${i}`, role: options.memberRole ?? 'staff' })) : options.visible === false ? null : { id },
             };
             return { ...result, maybeSingle: async () => result };
           },
@@ -57,5 +57,20 @@ describe("privileged account guard", () => {
     await expect(assertCanManageAccount(db2, MANAGER, "target-mgr")).rejects.toThrow(
       /Super Admin/,
     );
+  });
+  it('blocks a manager from modifying an identity shared between two schools', async () => {
+    await expect(assertCanManageAccount(fakeSupabase({ [MANAGER]: ['school_manager'] }, { shared: 2 }), MANAGER, TARGET_STAFF)).rejects.toThrow(/shared between schools/);
+  });
+  it('blocks an account outside the selected school', async () => {
+    await expect(assertCanManageAccount(fakeSupabase({ [MANAGER]: ['school_manager'] }, { visible: false }), MANAGER, TARGET_STAFF)).rejects.toThrow(/outside your school/);
+  });
+  it('uses the selected school role rather than a manager role from another school', async () => {
+    expect(await getRoles(fakeSupabase({ [MANAGER]: ['school_manager'] }, { schoolRole: 'student' }), MANAGER)).toEqual(['student']);
+  });
+  it('denies school privileges without an active membership', async () => {
+    expect(await getRoles(fakeSupabase({ [MANAGER]: ['school_manager'] }, { schoolRole: null }), MANAGER)).toEqual([]);
+  });
+  it('protects administrator memberships even when the global legacy role is staff', async () => {
+    await expect(assertCanManageAccount(fakeSupabase({ [MANAGER]: ['school_manager'], [TARGET_STAFF]: ['staff'] }, { memberRole: 'school_manager' }), MANAGER, TARGET_STAFF)).rejects.toThrow(/Super Admin/);
   });
 });

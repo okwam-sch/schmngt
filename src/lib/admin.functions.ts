@@ -246,7 +246,7 @@ export const createAccount = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").insert({ user_id: user.user.id, role: data.role });
     const school = await resolveProvisionedSchool(context.supabase);
     if (!school) throw new Error('Select an active school before creating accounts.');
-    const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: data.role === 'super_admin' ? 'school_manager' : data.role, access_level: data.role === 'super_admin' ? 'administrator' : data.accessLevel ?? DEFAULT_LEVEL[data.role] });
+    const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: data.role === 'super_admin' ? 'school_manager' : data.role, access_level: data.role === 'school_manager' || data.role === 'super_admin' ? 'administrator' : data.role === 'staff' ? 'standard' : 'basic' });
     if (membershipError) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); throw new Error('Could not assign school access.'); }
     await syncTeachingAssignments(
       supabaseAdmin,
@@ -412,7 +412,7 @@ export const bulkImportAccounts = createServerFn({ method: "POST" })
       await supabaseAdmin.from("user_roles").insert({ user_id: user.user.id, role: row.role });
       const school = await resolveProvisionedSchool(context.supabase);
       if (!school) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); failed.push(`${row.email}: no active school`); continue; }
-      const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: row.role === 'super_admin' ? 'school_manager' : row.role, access_level: row.role === 'super_admin' ? 'administrator' : DEFAULT_LEVEL[row.role] });
+      const { error: membershipError } = await supabaseAdmin.from('school_memberships').insert({ school_id: school.id, user_id: user.user.id, role: row.role === 'super_admin' ? 'school_manager' : row.role, access_level: row.role === 'super_admin' || row.role === 'school_manager' ? 'administrator' : row.role === 'staff' ? 'standard' : 'basic' });
       if (membershipError) { await supabaseAdmin.auth.admin.deleteUser(user.user.id); failed.push(`${row.email}: school membership failed`); continue; }
       created += 1;
     }

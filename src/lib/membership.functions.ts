@@ -13,10 +13,16 @@ export const getSchoolContext = createServerFn({ method: 'GET' }).middleware([re
   ]);
   if (roles.error || memberships.error) throw new Error('Could not load school access.');
   const platform = roles.data?.some(r => r.role === 'super_admin') ?? false;
-  const directory = platform ? await supabase.from('schools').select('id, name, active').eq('active', true).order('name') : null;
-  const schools = platform ? directory?.data ?? [] : memberships.data?.filter(m => m.status === 'active' && m.schools?.active).map(m => m.schools) ?? [];
+  const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+  const { data: identity } = await supabase.from('profiles').select('status').eq('id', userId).maybeSingle();
+  if (identity?.status !== 'active') throw new Error('Your account is not active.');
+  const ids = memberships.data?.filter(m => m.status === 'active').map(m => m.school_id) ?? [];
+  let directory = supabaseAdmin.from('schools').select('id, name, active').eq('active', true).order('name');
+  if (!platform) directory = directory.in('id', ids);
+  const { data: schools, error: directoryError } = await directory;
+  if (directoryError) throw new Error('Could not load accessible schools.');
   const member = memberships.data?.find(m => m.school_id === school?.id && m.status === 'active');
-  return { schools, school, platform, role: platform ? 'super_admin' as const : member?.role ?? null, accessLevel: platform ? 'super_administrator' as const : member?.access_level ?? null };
+  return { schools: schools ?? [], school, platform, role: platform ? 'super_admin' as const : member?.role ?? null, accessLevel: platform ? 'super_administrator' as const : member?.access_level ?? null };
 });
 
 export const saveSchoolMembership = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])

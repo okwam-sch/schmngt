@@ -121,8 +121,9 @@ export const createSchool = createServerFn({ method: "POST" })
 
     // Provision the tenant's policy + branding rows atomically with the school
     // so no downstream module ever reads a half-configured tenant.
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const [{ error: sErr }, { error: bErr }] = await Promise.all([
-      supabase.from("tenant_settings").insert({
+      supabaseAdmin.from("tenant_settings").insert({
         school_id: school.id,
         positions: DEFAULT_POSITIONS,
         departments: DEFAULT_DEPARTMENTS,
@@ -130,7 +131,7 @@ export const createSchool = createServerFn({ method: "POST" })
         rating_scale: DEFAULT_RATING_SCALE as unknown as Json,
         features: defaultModuleFeatures(),
       }),
-      supabase.from("school_branding").insert({
+      supabaseAdmin.from("school_branding").insert({
         school_id: school.id,
         display_name: school.name,
         currency: school.currency,

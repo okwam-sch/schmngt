@@ -21,6 +21,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).middle
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: request.headers.get('authorization') ?? '', ...(schoolId ? { 'x-school-id': schoolId } : {}) } },
   });
+  const { data: identity, error: identityError } = await client.from('profiles').select('status').eq('id', context.userId).maybeSingle();
+  if (identityError || identity?.status !== 'active') throw new Error('This account is not active.');
   if (schoolId) {
     const { data, error } = await client.rpc('active_school_id');
     if (error || data !== schoolId) throw new Error('You do not have active access to this school.');

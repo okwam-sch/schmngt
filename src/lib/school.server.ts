@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * The provisioned school every module is scoped to: the earliest active
- * school (falling back to the earliest school). One resolver so overview,
- * finance, archives and data-access rules never disagree on "the school".
+ * Resolve the database-authorized active school for this request. Never
+ * infer school access from browser preferences or choose a directory row.
  */
 export async function resolveProvisionedSchool(
   supabase: SupabaseClient | any,

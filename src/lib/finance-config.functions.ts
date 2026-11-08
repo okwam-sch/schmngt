@@ -96,7 +96,7 @@ export const getFinanceConfiguration = createServerFn({ method: "POST" })
     if (failure) throw new Error(failure.message);
 
     return {
-      schools: schools ?? [],
+      schools: (schools ?? []).filter(s => s.id === schoolId),
       schoolId,
       sections: sections.data ?? [],
       items: items.data ?? [],

@@ -1,10 +1,11 @@
 # Roadmap
 
 ## School membership system
-- [ ] Add protected memberships, validated active-school context and school-scoped record access
-- [ ] Add portal school switching and membership administration; clear school-specific state on switch
-- [ ] Integrate centralized school resolution, permissions, configuration and privileged operations
-- [ ] Run regression and two-school access tests; document external sign-in verification limitations
+- [x] Add protected memberships, validated active-school context and school-scoped record access
+- [x] Add portal school switching and membership administration; clear school-specific state on switch
+- [x] Integrate centralized school resolution, permissions, configuration and privileged operations
+- [x] Run regression tests and document verification limitations in docs/school-memberships.md
+- [ ] Verify authenticated two-school switching and hosted RLS end to end — blocked: externally managed Supabase has no managed browser test session
 
 ## Assessment attachment integration
 - [x] Audit attachment and replace eager assessment scans with selected, on-demand roster reads
@@ -70,5 +71,5 @@
 - [x] Fix critical privilege escalation: assertCanManageAccount guard on updateAccount, setAccountStatus, adminResetPassword, resolveResetRequest
 - [x] Scope staff RLS on student_performance/assessments/exeat to teaching assignments; require admin for getFinanceConfiguration
 - [x] Add account-guard tests; 70/70 pass; build OK
-- [ ] Architectural: school membership model + school_id on operational tables + active-school switching (A1-A3) — needs product decision, app is single-school today
+- [x] Architectural: school membership model + school_id on operational tables + active-school switching (A1-A3) — implemented; hosted two-school verification remains blocked above
 - [ ] Verify privileged-target guard end to end as signed-in manager — blocked: external Supabase has no managed browser test session

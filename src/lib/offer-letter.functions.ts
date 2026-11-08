@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin } from "@/lib/admin.server";
 import { eligibleForOffer } from "@/lib/offer-letter";
 import { PEOPLE_FEATURE_KEY, letterTerms, parsePeopleRules } from "@/lib/people-rules";
+import { resolveProvisionedSchool } from './school.server';
 
 export const getAppointmentLetter = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -11,11 +12,13 @@ export const getAppointmentLetter = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const db = context.supabase;
+    const school = await resolveProvisionedSchool(db);
+    if (!school) throw new Error('Select an active school.');
     const [schools, branding, signers, managers] = await Promise.all([
-      db.from("schools").select("id, name, postal_address, town, community, district, region, gps_address").eq("active", true).order("name"),
+      db.from("schools").select("id, name, postal_address, town, community, district, region, gps_address").eq('id', school.id).order("name"),
       db.from("school_branding").select("school_id, display_name, logo_url"),
       db.from("profiles").select("id, full_name, email").eq("role", "super_admin").eq("status", "active").order("full_name"),
-      db.from("profiles").select("full_name").eq("role", "school_manager").eq("status", "active").order("full_name"),
+      db.from("profiles").select("full_name,school_memberships!inner(role,school_id)").eq('school_memberships.school_id', school.id).eq('school_memberships.role', 'school_manager').eq("status", "active").order("full_name"),
     ]);
     const failure = schools.error ?? branding.error ?? signers.error ?? managers.error;
     if (failure) throw new Error(failure.message);
@@ -23,8 +26,9 @@ export const getAppointmentLetter = createServerFn({ method: "GET" })
     if (data.kind === "account") {
       const result = await db.from("profiles").select("id, full_name, email, role, position, salary, start_date, created_at, employee_id").eq("id", data.id).single();
       if (result.error) throw new Error(result.error.message);
-      if (!eligibleForOffer(result.data.role)) throw new Error("Offer letters are available for staff and school managers only.");
-      employee = { id: result.data.id, name: result.data.full_name, email: result.data.email, role: result.data.role === "school_manager" ? "School Manager" : "Staff", position: result.data.position, salary: result.data.salary, startDate: result.data.start_date, onboardedAt: result.data.created_at, employeeId: result.data.employee_id };
+      const { data: member } = await db.from('school_memberships').select('role').eq('school_id', school.id).eq('user_id', data.id).maybeSingle();
+      if (!member || !eligibleForOffer(member.role)) throw new Error("Offer letters are available for staff and school managers only.");
+      employee = { id: result.data.id, name: result.data.full_name, email: result.data.email, role: member.role === "school_manager" ? "School Manager" : "Staff", position: result.data.position, salary: result.data.salary, startDate: result.data.start_date, onboardedAt: result.data.created_at, employeeId: result.data.employee_id };
     } else {
       const result = await db.from("offer_letters").select("id, candidate_name, candidate_email, position, salary, start_date, created_at").eq("id", data.id).single();
       if (result.error) throw new Error(result.error.message);
@@ -32,7 +36,7 @@ export const getAppointmentLetter = createServerFn({ method: "GET" })
     }
     const yearStart = `${employee.onboardedAt.slice(0, 4)}-01-01T00:00:00Z`;
     const seqQuery = data.kind === "account"
-      ? db.from("profiles").select("id", { count: "exact", head: true }).in("role", ["staff", "school_manager"])
+      ? db.from("profiles").select("id,school_memberships!inner(role,school_id)", { count: "exact", head: true }).eq('school_memberships.school_id', school.id).in('school_memberships.role', ['staff', 'school_manager'])
       : db.from("offer_letters").select("id", { count: "exact", head: true });
     const [numbering, seqCount, tenant] = await Promise.all([
       db.from("numbering_settings").select("school_id, school_code, employee_year_digits, employee_sequence_digits, employee_sequence_start"),

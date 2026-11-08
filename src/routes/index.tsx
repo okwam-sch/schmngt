@@ -213,12 +213,18 @@ function AuthPanel({
       toast.error("This account is not active. Contact an administrator.");
       return;
     }
-    if (profile.role !== role) {
+    const { data: memberships } = await supabase.from('school_memberships').select('school_id, role').eq('user_id', data.user.id).eq('status', 'active');
+    const { data: platformRoles } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id).eq('role', 'super_admin');
+    const platform = (platformRoles?.length ?? 0) > 0;
+    const member = memberships?.find(m => m.role === role);
+    if (!(role === 'super_admin' ? platform : !!member)) {
       await supabase.auth.signOut();
       setBusy(false);
       toast.error(`This account is not registered as ${meta.label}.`);
       return;
     }
+    window.sessionStorage.removeItem('portal-school');
+    if (member) window.sessionStorage.setItem('portal-school', member.school_id);
     try {
       await stampLogin({ data: undefined });
     } catch {

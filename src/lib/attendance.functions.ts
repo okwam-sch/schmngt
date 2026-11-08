@@ -17,7 +17,9 @@ export const getAttendanceAccess = createServerFn({ method: "GET" })
       .eq("id", context.userId)
       .maybeSingle();
 
-    const role = profile?.role ?? "";
+    const { data: effectiveRole, error: roleError } = await context.supabase.rpc('school_role');
+    if (roleError) throw new Error('Could not verify school permissions.');
+    const role = effectiveRole ?? "";
     if (role === "super_admin" || role === "school_manager") {
       return { allowed: true, isAdmin: true, classes: [] as string[] };
     }

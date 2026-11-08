@@ -10,6 +10,7 @@ import {
   scheduleSchema,
 } from "@/lib/staff.schemas";
 import { ratingScore } from "@/lib/staff";
+import { resolveProvisionedSchool } from './school.server';
 
 const STAFF_COLUMNS =
   "id, full_name, email, phone, role, position, department, employee_id, salary, start_date, status, access_level, created_at";
@@ -20,12 +21,15 @@ export const getStaffOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabase } = context;
+    const school = await resolveProvisionedSchool(supabase);
+    if (!school) throw new Error('Select an active school.');
 
     const [staff, performance, schedules, offers] = await Promise.all([
       supabase
         .from("profiles")
-        .select(STAFF_COLUMNS)
-        .in("role", ["staff", "school_manager", "super_admin"])
+        .select(`${STAFF_COLUMNS}, school_memberships!inner(role, access_level, school_id, status)`)
+        .eq('school_memberships.school_id', school.id)
+        .in('school_memberships.role', ['staff', 'school_manager'])
         .order("created_at", { ascending: false }),
       supabase.from("staff_performance").select("*").order("created_at", { ascending: false }),
       supabase.from("staff_schedules").select("*").order("schedule_date", { ascending: false }),
@@ -36,7 +40,7 @@ export const getStaffOverview = createServerFn({ method: "GET" })
     if (first) throw new Error(first.message);
 
     return {
-      staff: staff.data ?? [],
+      staff: (staff.data ?? []).map(p => ({ ...p, role: p.school_memberships[0]?.role ?? p.role, access_level: p.school_memberships[0]?.access_level ?? p.access_level })),
       performance: performance.data ?? [],
       schedules: schedules.data ?? [],
       offers: offers.data ?? [],

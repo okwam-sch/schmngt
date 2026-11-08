@@ -190,12 +190,18 @@ export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
+    const school = await resolveProvisionedSchool(context.supabase);
+    if (!school) return [];
     const { data, error } = await context.supabase
       .from("profiles")
-      .select(ACCOUNT_COLUMNS)
+      .select(`${ACCOUNT_COLUMNS}, school_memberships!inner(role, access_level, school_id, status)`)
+      .eq('school_memberships.school_id', school.id)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map(p => {
+      const member = p.school_memberships[0];
+      return { ...p, role: member?.role ?? p.role, access_level: member?.access_level ?? p.access_level };
+    });
   });
 
 /** Admin: create a user account. There is no self sign-up anywhere in the app. */

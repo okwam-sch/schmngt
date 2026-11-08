@@ -1817,6 +1817,35 @@ export type Database = {
         }[]
       }
       next_generated_number: { Args: { _kind: string }; Returns: string }
+      provision_school: {
+        Args: { _school: Json; _settings: Json }
+        Returns: {
+          active: boolean
+          code: string
+          community: string
+          country: string
+          created_at: string
+          currency: string
+          district: string
+          gps_address: string
+          id: string
+          level_codes: string[]
+          locale: string
+          name: string
+          postal_address: string
+          region: string
+          timezone: string
+          town: string
+          type_code: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "schools"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       school_role: { Args: never; Returns: string }
       shares_active_school: { Args: { _user: string }; Returns: boolean }
     }

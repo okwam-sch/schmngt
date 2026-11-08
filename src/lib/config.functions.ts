@@ -92,53 +92,11 @@ export const createSchool = createServerFn({ method: "POST" })
       throw new Error("One or more education levels no longer exist.");
     }
 
-    const { data: school, error } = await supabase
-      .from("schools")
-      .insert({
-        name: data.name,
-        code: data.code,
-        country: data.country,
-        region: data.region ?? "",
-        district: data.district ?? "",
-        town: data.town ?? "",
-        community: data.community ?? "",
-        postal_address: data.postalAddress ?? "",
-        gps_address: data.gpsAddress ?? "",
-        timezone: data.timezone ?? "UTC",
-        currency: data.currency,
-        locale: data.locale,
-        type_code: data.typeCode,
-        level_codes: data.levelCodes,
-        active: data.active ?? true,
-      })
-      .select("*")
-      .single();
-    if (error) {
-      throw new Error(
-        error.code === "23505" ? "A school already uses that short code." : error.message,
-      );
-    }
-
-    // Provision the tenant's policy + branding rows atomically with the school
-    // so no downstream module ever reads a half-configured tenant.
-    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-    const [{ error: sErr }, { error: bErr }] = await Promise.all([
-      supabaseAdmin.from("tenant_settings").insert({
-        school_id: school.id,
-        positions: DEFAULT_POSITIONS,
-        departments: DEFAULT_DEPARTMENTS,
-        schedule_types: DEFAULT_SCHEDULE_TYPES,
-        rating_scale: DEFAULT_RATING_SCALE as unknown as Json,
-        features: defaultModuleFeatures(),
-      }),
-      supabaseAdmin.from("school_branding").insert({
-        school_id: school.id,
-        display_name: school.name,
-        currency: school.currency,
-        locale: school.locale,
-      }),
-    ]);
-    if (sErr ?? bErr) throw new Error((sErr ?? bErr)!.message);
+    const { data: school, error } = await supabase.rpc('provision_school', {
+      _school: { name: data.name, code: data.code, country: data.country, region: data.region ?? '', district: data.district ?? '', town: data.town ?? '', community: data.community ?? '', postal_address: data.postalAddress ?? '', gps_address: data.gpsAddress ?? '', timezone: data.timezone ?? 'UTC', currency: data.currency, locale: data.locale, type_code: data.typeCode, level_codes: data.levelCodes, active: data.active ?? true },
+      _settings: { positions: DEFAULT_POSITIONS, departments: DEFAULT_DEPARTMENTS, schedule_types: DEFAULT_SCHEDULE_TYPES, rating_scale: DEFAULT_RATING_SCALE as unknown as Json, features: defaultModuleFeatures() as unknown as Json },
+    });
+    if (error || !school) throw new Error(error?.code === '23505' ? 'A school already uses that short code.' : error?.message ?? 'School provisioning failed.');
 
     await logAudit(supabase, context.userId, {
       action: "school_created",

@@ -32,6 +32,7 @@ import { GRADING_SYSTEMS } from "@/lib/config";
 import { PEOPLE_FEATURE_KEY, parsePeopleRules, peopleRulesSchema } from "@/lib/people-rules";
 import { OPS_FEATURE_KEY, opsRulesSchema, parseOpsRules } from "@/lib/operations-rules";
 import { schoolCodeDigits } from "@/lib/numbering";
+import { resolveProvisionedSchool } from './school.server';
 
 /** Everything the System Configuration module needs, in one round trip. */
 export const getConfiguration = createServerFn({ method: "GET" })
@@ -39,6 +40,7 @@ export const getConfiguration = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
     const { supabase } = context;
+    const activeSchool = await resolveProvisionedSchool(supabase);
 
     const [types, levels, schools, subjects, settings, branding, numbering, classes] = await Promise.all([
       supabase.from("school_types").select("*").order("name"),
@@ -59,7 +61,7 @@ export const getConfiguration = createServerFn({ method: "GET" })
     return {
       types: types.data ?? [],
       levels: levels.data ?? [],
-      schools: schools.data ?? [],
+      schools: (schools.data ?? []).filter(s => s.id === activeSchool?.id),
       subjects: subjects.data ?? [],
       settings: (settings.data ?? []).map((s) => ({ ...s, features: mergedFeatures(s.features as never) })),
       branding: branding.data ?? [],

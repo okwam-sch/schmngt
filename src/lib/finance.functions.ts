@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/lib/school-auth";
 import { assertAdmin, logAudit } from "@/lib/admin.server";
 import { classLevelCode } from "@/lib/education-levels.server";
 import { levelScopeError } from "@/lib/education-levels";
+import { resolveProvisionedSchool } from './school.server';
 import {
   deleteSchema,
   expenseSchema,
@@ -20,6 +21,8 @@ export const getFinancialOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabase } = context;
+    const school = await resolveProvisionedSchool(supabase);
+    if (!school) throw new Error('Select an active school.');
 
     const [income, expenses, payroll, fees, students, staff] = await Promise.all([
       supabase.from("finance_income").select("*").order("entry_date", { ascending: false }),
@@ -35,8 +38,9 @@ export const getFinancialOverview = createServerFn({ method: "GET" })
         .order("student_name"),
       supabase
         .from("profiles")
-        .select("id, full_name, employee_id, position, department, salary")
-        .in("role", ["staff", "school_manager"])
+        .select("id, full_name, employee_id, position, department, salary, school_memberships!inner(role,school_id)")
+        .eq('school_memberships.school_id', school.id)
+        .in('school_memberships.role', ['staff', 'school_manager'])
         .order("full_name"),
     ]);
 
@@ -132,12 +136,15 @@ export const importStaffPayroll = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabase } = context;
+    const school = await resolveProvisionedSchool(supabase);
+    if (!school) throw new Error('Select an active school.');
 
     const [{ data: staff, error: sErr }, { data: existing, error: eErr }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, employee_id, position, salary")
-        .in("role", ["staff", "school_manager"]),
+        .select("id, full_name, employee_id, position, salary, school_memberships!inner(role,school_id)")
+        .eq('school_memberships.school_id', school.id)
+        .in('school_memberships.role', ['staff', 'school_manager']),
       supabase.from("finance_payroll").select("staff_id"),
     ]);
     if (sErr ?? eErr) throw new Error((sErr ?? eErr)!.message);

@@ -3,6 +3,7 @@ import { brandingQueryOptions, DEFAULT_SCHOOL_NAME, type PublicBranding } from "
 import { getSchoolBranding } from '@/lib/branding.functions';
 import { useActiveSchool } from './useActiveSchool';
 import { useServerFn } from '@tanstack/react-start';
+import { useRouter } from '@tanstack/react-router';
 
 export { DEFAULT_SCHOOL_NAME };
 
@@ -10,15 +11,18 @@ export { DEFAULT_SCHOOL_NAME };
 export function useSchoolName(): PublicBranding {
   const school = useActiveSchool();
   const load = useServerFn(getSchoolBranding);
+  const router = useRouter();
+  const publicBranding = router.state.matches[0]?.context.branding as PublicBranding | undefined;
   const { data } = useQuery(school?.school ? { queryKey: ['school-branding', school.school.id], queryFn: () => load() } : brandingQueryOptions);
+  const brand = school?.school ? data : data ?? publicBranding;
   return {
-    name: data?.name || DEFAULT_SCHOOL_NAME,
-    tagline: data?.tagline ?? "",
-    logoUrl: data?.logoUrl ?? null,
-    primaryColor: data?.primaryColor ?? "",
-    accentColor: data?.accentColor ?? "",
-    establishedYear: data?.establishedYear ?? "",
-    motto: data?.motto ?? "",
-    language: data?.language ?? "en",
+    name: brand?.name || DEFAULT_SCHOOL_NAME,
+    tagline: brand?.tagline ?? "",
+    logoUrl: brand?.logoUrl ?? null,
+    primaryColor: brand?.primaryColor ?? "",
+    accentColor: brand?.accentColor ?? "",
+    establishedYear: brand?.establishedYear ?? "",
+    motto: brand?.motto ?? "",
+    language: brand?.language ?? "en",
   };
 }

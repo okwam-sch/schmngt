@@ -1,5 +1,10 @@
 # Roadmap
 
+## Central governance enforcement
+- [ ] Audit module configuration consumption, shared authorization, versioned writes and database contracts; record baseline
+- [ ] Remediate confirmed central-governance gaps with shared authoritative rules and regression tests
+- [ ] Run applicable regression/security checks and public preview verification; document evidence and remaining limitations
+
 ## School membership system
 - [x] Add protected memberships, validated active-school context and school-scoped record access
 - [x] Add portal school switching and membership administration; clear school-specific state on switch

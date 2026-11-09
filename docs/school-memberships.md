@@ -10,11 +10,12 @@
 - Numbering for admissions uses the admission's school. Global profile employment fields and employee identifiers remain shared identity attributes, not independent employment records per school.
 
 ## Validation
-- Full regression suite: `bunx vitest run`.
+- Full regression suite: `bunx vitest run` — 78 tests passed across 18 files.
 - Added school-resolver tests and manager/shared-identity/membership-role tests.
 - Database migration tool applied schema, grants, restrictive policies, helper functions and transactional provisioning; generated types updated automatically.
 - Database linter: five pre-existing warnings (two public and two signed-in security-definer execution warnings, plus disabled leaked-password protection). No newly introduced warning remains.
 - Preview compilation checked through `/tmp/observability/build-errors.log`.
+- Public sign-in page inspected in Chromium; school branding and role choices render. Authenticated switching remains unverified.
 
 ## Limitations
 - Authenticated two-school browser and hosted RLS end-to-end tests are not available because Supabase is externally managed and no managed browser session can be minted. Unit tests do not establish live RLS correctness.
